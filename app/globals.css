@@ -24,3 +24,548 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+  color: #333;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+main {
+  background: white;
+  border-radius: 20px;
+  padding: 30px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+  margin: 20px 0;
+}
+
+h1 {
+  text-align: center;
+  color: #4a5568;
+  margin-bottom: 30px;
+  font-size: 2.5rem;
+  background: linear-gradient(45deg, #667eea, #764ba2);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+h2 {
+  color: #4a5568;
+  margin-bottom: 20px;
+  border-bottom: 3px solid #e2e8f0;
+  padding-bottom: 10px;
+}
+
+.bet-form {
+  background: #f7fafc;
+  padding: 25px;
+  border-radius: 15px;
+  margin-bottom: 30px;
+  border: 2px solid #e2e8f0;
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+.form-group input,
+.form-group select {
+  width: 100%;
+  padding: 12px 15px;
+  border: 2px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 16px;
+  transition: border-color 0.3s ease;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.btn-primary {
+  background: linear-gradient(45deg, #667eea, #764ba2);
+  color: white;
+  padding: 12px 30px;
+  border: none;
+  border-radius: 25px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  width: 100%;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+}
+
+.summary {
+  margin-bottom: 30px;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.stat-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 20px;
+  border-radius: 15px;
+  text-align: center;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+}
+
+.stat-card h3 {
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 10px;
+  opacity: 0.9;
+}
+
+.stat-card .amount {
+  font-size: 2rem;
+  font-weight: bold;
+  margin: 0;
+}
+
+.bets-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 15px;
+}
+
+.bet-card {
+  background: white;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.bet-card:hover {
+  border-color: #cbd5e0;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.bet-card.winner {
+  border-color: #48bb78;
+  background: linear-gradient(135deg, #c6f6d5 0%, #9ae6b4 100%);
+  animation: celebration 0.5s ease-in-out;
+}
+
+@keyframes celebration {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+.bet-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gender {
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 14px;
+  width: fit-content;
+}
+
+.gender.boy {
+  background: #bee3f8;
+  color: #2b6cb0;
+}
+
+.gender.girl {
+  background: #fbb6ce;
+  color: #b83280;
+}
+
+.amount {
+  font-weight: bold;
+  color: #38a169;
+  font-size: 18px;
+}
+
+.winner-badge {
+  background: #48bb78;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: bold;
+  width: fit-content;
+}
+
+.btn-remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 5px;
+  border-radius: 50%;
+  transition: background-color 0.2s ease;
+}
+
+.btn-remove:hover {
+  background: #fed7d7;
+}
+
+.reveal-section {
+  text-align: center;
+  padding: 30px;
+  background: linear-gradient(135deg, #fef5e7 0%, #f0fff4 100%);
+  border-radius: 15px;
+  margin: 30px 0;
+  border: 2px solid #e6fffa;
+}
+
+.reveal-buttons {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 20px;
+}
+
+.btn-reveal {
+  padding: 15px 30px;
+  border: none;
+  border-radius: 25px;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-width: 150px;
+}
+
+.btn-reveal.boy {
+  background: linear-gradient(45deg, #4299e1, #3182ce);
+  color: white;
+}
+
+.btn-reveal.girl {
+  background: linear-gradient(45deg, #ed64a6, #d53f8c);
+  color: white;
+}
+
+.btn-reveal:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 15px 30px rgba(0,0,0,0.2);
+}
+
+.winners-section {
+  background: linear-gradient(135deg, #fef5e7 0%, #f0fff4 100%);
+  padding: 30px;
+  border-radius: 15px;
+  margin: 30px 0;
+  text-align: center;
+}
+
+.reveal-result h3 {
+  font-size: 2.5rem;
+  margin-bottom: 20px;
+  color: #2d3748;
+}
+
+.winner-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.winner-card {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  border: 3px solid #48bb78;
+  box-shadow: 0 5px 15px rgba(72, 187, 120, 0.2);
+}
+
+.winnings {
+  color: #38a169;
+  font-weight: bold;
+  font-size: 18px;
+  margin-left: 10px;
+}
+
+.no-winners {
+  background: white;
+  padding: 30px;
+  border-radius: 12px;
+  border: 2px solid #fed7d7;
+  margin-top: 20px;
+}
+
+.actions {
+  text-align: center;
+  margin-top: 30px;
+}
+
+.btn-reset {
+  background: linear-gradient(45deg, #f56565, #e53e3e);
+  color: white;
+  padding: 12px 30px;
+  border: none;
+  border-radius: 25px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-reset:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(245, 101, 101, 0.3);
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 10px;
+  }
+  
+  main {
+    padding: 20px;
+  }
+  
+  h1 {
+    font-size: 2rem;
+  }
+  
+  .stats {
+    grid-template-columns: 1fr;
+  }
+  
+  .bets-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .reveal-buttons {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .btn-reveal {
+    width: 200px;
+  }
+}
+
+ .odds-display {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          border-radius: 15px;
+          padding: 25px;
+          margin: 20px 0;
+          color: white;
+          box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .odds-title {
+          text-align: center;
+          margin-bottom: 25px;
+          font-size: 1.8rem;
+          text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .odds-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 20px;
+          margin-bottom: 25px;
+        }
+
+        @media (max-width: 768px) {
+          .odds-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+
+        .odds-card {
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 12px;
+          padding: 20px;
+          backdrop-filter: blur(10px);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          transition: transform 0.3s ease;
+        }
+
+        .odds-card:hover {
+          transform: translateY(-5px);
+        }
+
+        .boy-card {
+          border-left: 4px solid #4299e1;
+        }
+
+        .girl-card {
+          border-left: 4px solid #ed64a6;
+        }
+
+        .odds-header {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-bottom: 15px;
+        }
+
+        .odds-header .emoji {
+          font-size: 2rem;
+        }
+
+        .odds-header h3 {
+          margin: 0;
+          font-size: 1.4rem;
+        }
+
+        .main-ratio {
+          text-align: center;
+          margin-bottom: 15px;
+        }
+
+        .ratio-label {
+          display: block;
+          font-size: 0.9rem;
+          opacity: 0.8;
+          margin-bottom: 5px;
+        }
+
+        .ratio-value {
+          display: block;
+          font-size: 2.2rem;
+          font-weight: bold;
+          color: #ffd700;
+          text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .traditional-odds {
+          text-align: center;
+          margin-bottom: 15px;
+          padding: 10px;
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 8px;
+        }
+
+        .odds-label {
+          display: block;
+          font-size: 0.8rem;
+          opacity: 0.8;
+        }
+
+        .odds-value {
+          display: block;
+          font-size: 1.2rem;
+          font-weight: bold;
+        }
+
+        .bet-info {
+          text-align: center;
+          font-size: 0.9rem;
+          line-height: 1.4;
+        }
+
+        .bet-count {
+          font-weight: bold;
+        }
+
+        .bet-amount {
+          font-size: 1.1rem;
+          color: #90cdf4;
+        }
+
+        .bet-percentage {
+          opacity: 0.8;
+        }
+
+        .payout-example {
+          text-align: center;
+          margin-top: 10px;
+          padding: 8px;
+          background: rgba(0, 0, 0, 0.2);
+          border-radius: 6px;
+        }
+
+        .money-distribution {
+          margin-top: 25px;
+        }
+
+        .money-distribution h4 {
+          text-align: center;
+          margin-bottom: 10px;
+        }
+
+        .distribution-bar {
+          height: 20px;
+          background: rgba(255, 255, 255, 0.2);
+          border-radius: 10px;
+          overflow: hidden;
+          display: flex;
+          margin-bottom: 10px;
+        }
+
+        .boy-portion {
+          background: linear-gradient(90deg, #4299e1, #3182ce);
+          transition: width 0.5s ease;
+        }
+
+        .girl-portion {
+          background: linear-gradient(90deg, #ed64a6, #d53f8c);
+          transition: width 0.5s ease;
+        }
+
+        .distribution-labels {
+          display: flex;
+          justify-content: space-between;
+          font-size: 0.9rem;
+          opacity: 0.9;
+        }
+
+        .odds-explanation {
+          margin-top: 20px;
+          padding: 15px;
+          background: rgba(0, 0, 0, 0.2);
+          border-radius: 8px;
+        }
+
+        .odds-explanation summary {
+          cursor: pointer;
+          font-weight: bold;
+          margin-bottom: 10px;
+        }
+
+        .odds-explanation ul {
+          margin: 10px 0 0 20px;
+          line-height: 1.6;
+        }
+
+        .odds-explanation li {
+          margin-bottom: 8px;
+        }
