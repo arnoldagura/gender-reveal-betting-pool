@@ -2,8 +2,9 @@
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
 
-export default function ViewOnlyStats() {
+export default function Page() {
   const [bets, setBets] = useState([]);
+  const [newBet, setNewBet] = useState({ name: '', gender: 'boy', amount: '' });
   const [revealedGender, setRevealedGender] = useState(null);
   const [isRevealed, setIsRevealed] = useState(false);
 
@@ -24,26 +25,67 @@ export default function ViewOnlyStats() {
     }
   }, []);
 
-  // Auto-refresh data every 5 seconds
+  // Save to localStorage whenever state changes
   useEffect(() => {
-    const interval = setInterval(() => {
-      const savedBets = localStorage.getItem('genderRevealBets');
-      const savedReveal = localStorage.getItem('revealedGender');
-      const savedIsRevealed = localStorage.getItem('isRevealed');
+    localStorage.setItem('genderRevealBets', JSON.stringify(bets));
+  }, [bets]);
 
-      if (savedBets) {
-        setBets(JSON.parse(savedBets));
-      }
-      if (savedReveal && (savedReveal === 'boy' || savedReveal === 'girl')) {
-        setRevealedGender(savedReveal);
-      }
-      if (savedIsRevealed) {
-        setIsRevealed(JSON.parse(savedIsRevealed));
-      }
-    }, 5000); // Refresh every 5 seconds
+  useEffect(() => {
+    if (revealedGender) {
+      localStorage.setItem('revealedGender', revealedGender);
+    }
+  }, [revealedGender]);
 
-    return () => clearInterval(interval);
-  }, []);
+  useEffect(() => {
+    localStorage.setItem('isRevealed', JSON.stringify(isRevealed));
+  }, [isRevealed]);
+
+  const addBet = (e) => {
+    e.preventDefault();
+    const amount = parseFloat(newBet.amount);
+
+    if (!newBet.name || !newBet.amount || isNaN(amount) || amount <= 0) {
+      alert('Please enter a valid name and bet amount');
+      return;
+    }
+
+    if (isRevealed) {
+      alert('Betting is closed - gender has been revealed!');
+      return;
+    }
+
+    const bet = {
+      id: Date.now(),
+      name: newBet.name.trim(),
+      gender: newBet.gender,
+      amount: amount,
+    };
+
+    setBets([...bets, bet]);
+    setNewBet({ name: '', gender: 'boy', amount: '' });
+  };
+
+  const removeBet = (id) => {
+    if (isRevealed) {
+      alert('Cannot remove bets after reveal!');
+      return;
+    }
+    setBets(bets.filter((bet) => bet.id !== id));
+  };
+
+  const revealGender = (gender) => {
+    setRevealedGender(gender);
+    setIsRevealed(true);
+  };
+
+  const resetGame = () => {
+    setBets([]);
+    setRevealedGender(null);
+    setIsRevealed(false);
+    localStorage.removeItem('genderRevealBets');
+    localStorage.removeItem('revealedGender');
+    localStorage.removeItem('isRevealed');
+  };
 
   // Calculate totals and winners
   const totalPot = bets.reduce((sum, bet) => sum + bet.amount, 0);
@@ -64,44 +106,19 @@ export default function ViewOnlyStats() {
   return (
     <div className='container'>
       <Head>
-        <title>Gender Reveal Betting Pool - Live Stats</title>
+        <title>Gender Reveal Betting Pool</title>
         <meta
           name='description'
-          content="Live view of the baby's gender betting pool!"
+          content="Place your bets on the baby's gender!"
         />
         <link rel='icon' href='/favicon.ico' />
       </Head>
 
       {/* Header */}
       <div className='header'>
-        <h1 className='main-title'>🎲 Live Betting Stats</h1>
-        <p className='subtitle'>Real-time odds and statistics 📊</p>
-        {!isRevealed && (
-          <div style={{ 
-            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', 
-            color: 'white', 
-            padding: '8px 16px', 
-            borderRadius: '20px', 
-            display: 'inline-block', 
-            fontSize: '0.875rem', 
-            fontWeight: '600',
-            marginTop: '12px'
-          }}>
-            🔄 Auto-refreshing every 5 seconds
-          </div>
-        )}
+        <h1 className='main-title'>Gender Reveal Betting Pool</h1>
+        <p className='subtitle'>Place your bets and win big! 🎉</p>
       </div>
-
-      {/* No Data Message */}
-      {bets.length === 0 && (
-        <div className='card' style={{ textAlign: 'center', padding: '48px 24px' }}>
-          <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🎯</div>
-          <h2 className='card-title' style={{ marginBottom: '12px' }}>No Bets Yet</h2>
-          <p style={{ color: '#64748b', fontSize: '1.1rem' }}>
-            Waiting for the first brave soul to place a bet! 🎲
-          </p>
-        </div>
-      )}
 
       {/* Odds Display */}
       {bets.length > 0 && (
@@ -131,21 +148,6 @@ export default function ViewOnlyStats() {
               Bet PHP 10 → Win PHP{' '}
               {boyWinningRatio > 0 ? (10 * boyWinningRatio).toFixed(2) : '0.00'}
             </div>
-
-            {isRevealed && revealedGender === 'boy' && (
-              <div style={{
-                background: '#10b981',
-                color: 'white',
-                padding: '12px',
-                borderRadius: '8px',
-                textAlign: 'center',
-                marginTop: '12px',
-                fontWeight: '700',
-                fontSize: '1rem'
-              }}>
-                🏆 WINNERS! 🏆
-              </div>
-            )}
           </div>
 
           {/* Girl Odds Card */}
@@ -177,22 +179,69 @@ export default function ViewOnlyStats() {
                 ? (10 * girlWinningRatio).toFixed(2)
                 : '0.00'}
             </div>
-
-            {isRevealed && revealedGender === 'girl' && (
-              <div style={{
-                background: '#10b981',
-                color: 'white',
-                padding: '12px',
-                borderRadius: '8px',
-                textAlign: 'center',
-                marginTop: '12px',
-                fontWeight: '700',
-                fontSize: '1rem'
-              }}>
-                🏆 WINNERS! 🏆
-              </div>
-            )}
           </div>
+        </div>
+      )}
+
+      {/* Betting Form */}
+      {!isRevealed && (
+        <div className='card'>
+          <div className='card-header'>
+            <span className='card-icon'>💰</span>
+            <h2 className='card-title'>Place Your Bet</h2>
+          </div>
+
+          <form onSubmit={addBet} className='betting-form'>
+            <div className='form-row'>
+              <div className='form-group'>
+                <label className='form-label'>Your Name</label>
+                <input
+                  type='text'
+                  className='form-input'
+                  placeholder='Enter your name'
+                  value={newBet.name}
+                  onChange={(e) =>
+                    setNewBet({ ...newBet, name: e.target.value })
+                  }
+                  required
+                />
+              </div>
+
+              <div className='form-group'>
+                <label className='form-label'>Prediction</label>
+                <select
+                  className='form-select'
+                  value={newBet.gender}
+                  onChange={(e) =>
+                    setNewBet({ ...newBet, gender: e.target.value })
+                  }
+                >
+                  <option value='boy'>👶 Boy</option>
+                  <option value='girl'>👧 Girl</option>
+                </select>
+              </div>
+
+              <div className='form-group'>
+                <label className='form-label'>Bet Amount</label>
+                <input
+                  type='number'
+                  className='form-input'
+                  placeholder='PHP'
+                  min='1'
+                  step='0.01'
+                  value={newBet.amount}
+                  onChange={(e) =>
+                    setNewBet({ ...newBet, amount: e.target.value })
+                  }
+                  required
+                />
+              </div>
+            </div>
+
+            <button type='submit' className='btn-primary'>
+              Place Bet 🚀
+            </button>
+          </form>
         </div>
       )}
 
@@ -214,36 +263,6 @@ export default function ViewOnlyStats() {
           <div className='status-card'>
             <div className='status-label'>Total Bets</div>
             <div className='status-value'>{bets.length}</div>
-          </div>
-        </div>
-      )}
-
-      {/* Betting Status */}
-      {bets.length > 0 && !isRevealed && (
-        <div className='card'>
-          <div className='card-header'>
-            <span className='card-icon'>⏰</span>
-            <h2 className='card-title'>Betting Status</h2>
-          </div>
-          <div style={{ 
-            textAlign: 'center', 
-            padding: '24px',
-            background: 'linear-gradient(135deg, #fef3c7 0%, #ddd6fe 100%)',
-            borderRadius: '12px',
-            border: '2px solid #e0e7ff'
-          }}>
-            <div style={{ fontSize: '2rem', marginBottom: '12px' }}>🎲</div>
-            <h3 style={{ 
-              fontSize: '1.25rem', 
-              fontWeight: '700', 
-              color: '#1e293b',
-              marginBottom: '8px' 
-            }}>
-              Betting is OPEN!
-            </h3>
-            <p style={{ color: '#64748b', fontSize: '1rem' }}>
-              The gender has not been revealed yet. Bets are still being accepted!
-            </p>
           </div>
         </div>
       )}
@@ -274,8 +293,38 @@ export default function ViewOnlyStats() {
                     <div className='winner-badge'>🎉 Winner!</div>
                   )}
                 </div>
+                {!isRevealed && (
+                  <button
+                    onClick={() => removeBet(bet.id)}
+                    className='btn-remove'
+                    title='Remove bet'
+                  >
+                    ✕
+                  </button>
+                )}
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Gender Reveal Section */}
+      {bets.length > 0 && !isRevealed && (
+        <div className='reveal-section'>
+          <h2 className='reveal-title'>🎉 Ready to Reveal? 🎉</h2>
+          <div className='reveal-buttons'>
+            <button
+              onClick={() => revealGender('boy')}
+              className='btn-reveal boy'
+            >
+              It's a Boy! 👶
+            </button>
+            <button
+              onClick={() => revealGender('girl')}
+              className='btn-reveal girl'
+            >
+              It's a Girl! 👧
+            </button>
           </div>
         </div>
       )}
@@ -315,17 +364,11 @@ export default function ViewOnlyStats() {
         </div>
       )}
 
-      {/* Footer Info */}
-      <div style={{
-        textAlign: 'center',
-        padding: '24px',
-        color: '#64748b',
-        fontSize: '0.875rem',
-        borderTop: '1px solid #e2e8f0',
-        marginTop: '32px'
-      }}>
-        <p>📊 This is a read-only view of the betting pool</p>
-        <p>🔄 Data updates automatically every 5 seconds</p>
+      {/* Reset Button */}
+      <div className='actions'>
+        <button onClick={resetGame} className='btn-reset'>
+          🔄 Start New Game
+        </button>
       </div>
     </div>
   );
