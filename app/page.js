@@ -6,40 +6,37 @@ export default function ViewOnlyStats() {
   const [bets, setBets] = useState([]);
   const [revealedGender, setRevealedGender] = useState(null);
   const [isRevealed, setIsRevealed] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // Load data from localStorage on component mount
+  // Fetch data from API
+  const fetchData = async () => {
+    try {
+      const [betsResponse, gameStateResponse] = await Promise.all([
+        fetch('/api/bets'),
+        fetch('/api/game-state')
+      ]);
+      
+      const betsData = await betsResponse.json();
+      const gameStateData = await gameStateResponse.json();
+      
+      setBets(betsData);
+      setRevealedGender(gameStateData.revealed_gender);
+      setIsRevealed(gameStateData.is_revealed);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const savedBets = localStorage.getItem('genderRevealBets');
-    const savedReveal = localStorage.getItem('revealedGender');
-    const savedIsRevealed = localStorage.getItem('isRevealed');
-
-    if (savedBets) {
-      setBets(JSON.parse(savedBets));
-    }
-    if (savedReveal && (savedReveal === 'boy' || savedReveal === 'girl')) {
-      setRevealedGender(savedReveal);
-    }
-    if (savedIsRevealed) {
-      setIsRevealed(JSON.parse(savedIsRevealed));
-    }
+    fetchData();
   }, []);
 
   // Auto-refresh data every 5 seconds
   useEffect(() => {
     const interval = setInterval(() => {
-      const savedBets = localStorage.getItem('genderRevealBets');
-      const savedReveal = localStorage.getItem('revealedGender');
-      const savedIsRevealed = localStorage.getItem('isRevealed');
-
-      if (savedBets) {
-        setBets(JSON.parse(savedBets));
-      }
-      if (savedReveal && (savedReveal === 'boy' || savedReveal === 'girl')) {
-        setRevealedGender(savedReveal);
-      }
-      if (savedIsRevealed) {
-        setIsRevealed(JSON.parse(savedIsRevealed));
-      }
+      fetchData();
     }, 5000); // Refresh every 5 seconds
 
     return () => clearInterval(interval);
@@ -60,6 +57,15 @@ export default function ViewOnlyStats() {
 
   const boyWinningRatio = boyTotal > 0 ? totalPot / boyTotal : 0;
   const girlWinningRatio = girlTotal > 0 ? totalPot / girlTotal : 0;
+
+  if (loading) {
+    return (
+      <div className='container' style={{ textAlign: 'center', padding: '100px 0' }}>
+        <div style={{ fontSize: '3rem', marginBottom: '16px' }}>📊</div>
+        <h2>Loading live stats...</h2>
+      </div>
+    );
+  }
 
   return (
     <div className='container'>
@@ -249,15 +255,15 @@ export default function ViewOnlyStats() {
       )}
 
       {/* All Bets List */}
-      {bets.length > 0 && (
+      {safeBets.length > 0 && (
         <div className='card'>
           <div className='card-header'>
             <span className='card-icon'>📋</span>
-            <h2 className='card-title'>All Bets ({bets.length})</h2>
+            <h2 className='card-title'>All Bets ({safeBets.length})</h2>
           </div>
 
           <div className='bets-grid'>
-            {bets.map((bet) => (
+            {safeBets.map((bet) => (
               <div
                 key={bet.id}
                 className={`bet-card ${
@@ -265,11 +271,11 @@ export default function ViewOnlyStats() {
                 }`}
               >
                 <div className='bet-info'>
-                  <div className='bet-name'>{bet.name}</div>
+                  <div className='bet-name'>{bet.name || 'Unknown'}</div>
                   <span className={`bet-gender ${bet.gender}`}>
                     {bet.gender === 'boy' ? '👶 Boy' : '👧 Girl'}
                   </span>
-                  <div className='bet-amount'>PHP {bet.amount.toFixed(2)}</div>
+                  <div className='bet-amount'>PHP {(bet.amount || 0).toFixed(2)}</div>
                   {isRevealed && bet.gender === revealedGender && (
                     <div className='winner-badge'>🎉 Winner!</div>
                   )}
@@ -326,6 +332,7 @@ export default function ViewOnlyStats() {
       }}>
         <p>📊 This is a read-only view of the betting pool</p>
         <p>🔄 Data updates automatically every 5 seconds</p>
+        <p>💾 All data is stored in the database</p>
       </div>
     </div>
   );

@@ -7,44 +7,38 @@ export default function Page() {
   const [newBet, setNewBet] = useState({ name: '', gender: 'boy', amount: '' });
   const [revealedGender, setRevealedGender] = useState(null);
   const [isRevealed, setIsRevealed] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
-  // Load data from localStorage on component mount
+  // Fetch data from API
+  const fetchData = async () => {
+    try {
+      const [betsResponse, gameStateResponse] = await Promise.all([
+        fetch('/api/bets'),
+        fetch('/api/game-state')
+      ]);
+      
+      const betsData = await betsResponse.json();
+      const gameStateData = await gameStateResponse.json();
+      
+      setBets(betsData);
+      setRevealedGender(gameStateData.revealed_gender);
+      setIsRevealed(gameStateData.is_revealed);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const savedBets = localStorage.getItem('genderRevealBets');
-    const savedReveal = localStorage.getItem('revealedGender');
-    const savedIsRevealed = localStorage.getItem('isRevealed');
-
-    if (savedBets) {
-      setBets(JSON.parse(savedBets));
-    }
-    if (savedReveal && (savedReveal === 'boy' || savedReveal === 'girl')) {
-      setRevealedGender(savedReveal);
-    }
-    if (savedIsRevealed) {
-      setIsRevealed(JSON.parse(savedIsRevealed));
-    }
+    fetchData();
   }, []);
 
-  // Save to localStorage whenever state changes
-  useEffect(() => {
-    localStorage.setItem('genderRevealBets', JSON.stringify(bets));
-  }, [bets]);
-
-  useEffect(() => {
-    if (revealedGender) {
-      localStorage.setItem('revealedGender', revealedGender);
-    }
-  }, [revealedGender]);
-
-  useEffect(() => {
-    localStorage.setItem('isRevealed', JSON.stringify(isRevealed));
-  }, [isRevealed]);
-
-  const addBet = (e) => {
+  const addBet = async (e) => {
     e.preventDefault();
-    const amount = parseFloat(newBet.amount);
-
-    if (!newBet.name || !newBet.amount || isNaN(amount) || amount <= 0) {
+    
+    if (!newBet.name || !newBet.amount) {
       alert('Please enter a valid name and bet amount');
       return;
     }
@@ -54,37 +48,98 @@ export default function Page() {
       return;
     }
 
-    const bet = {
-      id: Date.now(),
-      name: newBet.name.trim(),
-      gender: newBet.gender,
-      amount: amount,
-    };
+    setSubmitting(true);
+    
+    try {
+      const response = await fetch('/api/bets', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: newBet.name,
+          gender: newBet.gender,
+          amount: parseFloat(newBet.amount)
+        }),
+      });
 
-    setBets([...bets, bet]);
-    setNewBet({ name: '', gender: 'boy', amount: '' });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to add bet');
+      }
+
+      // Refresh data
+      await fetchData();
+      setNewBet({ name: '', gender: 'boy', amount: '' });
+    } catch (error) {
+      alert('Error adding bet: ' + error.message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const removeBet = (id) => {
+  const removeBet = async (id) => {
     if (isRevealed) {
       alert('Cannot remove bets after reveal!');
       return;
     }
-    setBets(bets.filter((bet) => bet.id !== id));
+    
+    try {
+      const response = await fetch(`/api/bets?id=${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to remove bet');
+      }
+
+      await fetchData();
+    } catch (error) {
+      alert('Error removing bet: ' + error.message);
+    }
   };
 
-  const revealGender = (gender) => {
-    setRevealedGender(gender);
-    setIsRevealed(true);
+  const revealGender = async (gender) => {
+    try {
+      const response = await fetch('/api/game-state', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          revealedGender: gender,
+          isRevealed: true
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to reveal gender');
+      }
+
+      await fetchData();
+    } catch (error) {
+      alert('Error revealing gender: ' + error.message);
+    }
   };
 
-  const resetGame = () => {
-    setBets([]);
-    setRevealedGender(null);
-    setIsRevealed(false);
-    localStorage.removeItem('genderRevealBets');
-    localStorage.removeItem('revealedGender');
-    localStorage.removeItem('isRevealed');
+  const resetGame = async () => {
+    if (!confirm('Are you sure you want to start a new game? This will delete all bets!')) {
+      return;
+    }
+    
+    try {
+      const response = await fetch('/api/reset', {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to reset game');
+      }
+
+      await fetchData();
+    } catch (error) {
+      alert('Error resetting game: ' + error.message);
+    }
   };
 
   // Calculate totals and winners
@@ -102,6 +157,15 @@ export default function Page() {
 
   const boyWinningRatio = boyTotal > 0 ? totalPot / boyTotal : 0;
   const girlWinningRatio = girlTotal > 0 ? totalPot / girlTotal : 0;
+
+  if (loading) {
+    return (
+      <div className='container' style={{ textAlign: 'center', padding: '100px 0' }}>
+        <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🎲</div>
+        <h2>Loading betting pool...</h2>
+      </div>
+    );
+  }
 
   return (
     <div className='container'>
@@ -204,6 +268,7 @@ export default function Page() {
                     setNewBet({ ...newBet, name: e.target.value })
                   }
                   required
+                  disabled={submitting}
                 />
               </div>
 
@@ -215,6 +280,7 @@ export default function Page() {
                   onChange={(e) =>
                     setNewBet({ ...newBet, gender: e.target.value })
                   }
+                  disabled={submitting}
                 >
                   <option value='boy'>👶 Boy</option>
                   <option value='girl'>👧 Girl</option>
@@ -234,12 +300,13 @@ export default function Page() {
                     setNewBet({ ...newBet, amount: e.target.value })
                   }
                   required
+                  disabled={submitting}
                 />
               </div>
             </div>
 
-            <button type='submit' className='btn-primary'>
-              Place Bet 🚀
+            <button type='submit' className='btn-primary' disabled={submitting}>
+              {submitting ? 'Placing Bet...' : 'Place Bet 🚀'}
             </button>
           </form>
         </div>
