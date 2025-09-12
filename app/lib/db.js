@@ -10,7 +10,6 @@ export async function getAllBets() {
     if (error) {
       console.error('Supabase error fetching bets:', error);
       
-      // Return empty array if tables don't exist yet
       if (error.code === '42P01') {
         console.log('Bets table not ready yet, returning empty array');
         return [];
@@ -28,7 +27,6 @@ export async function getAllBets() {
 
 export async function addBet(name, gender, amount) {
   try {
-    await initializeDatabase();
     
     const { data, error } = await supabase
       .from('bets')
@@ -56,7 +54,6 @@ export async function addBet(name, gender, amount) {
 
 export async function deleteBet(id) {
   try {
-    await initializeDatabase();
     
     const { error } = await supabase
       .from('bets')
@@ -77,19 +74,17 @@ export async function deleteBet(id) {
 
 export async function getGameState() {
   try {
-    await initializeDatabase();
     
     const { data, error } = await supabase
       .from('game_state')
       .select('revealed_gender, is_revealed')
       .order('id', { ascending: false })
       .limit(1)
-      .maybeSingle(); // Use maybeSingle() to handle empty results gracefully
+      .maybeSingle();
 
     if (error) {
       console.error('Supabase error fetching game state:', error);
-      
-      // Return default state if tables don't exist yet
+    
       if (error.code === '42P01') {
         console.log('Game state table not ready yet, returning default state');
         return { revealed_gender: null, is_revealed: false };
@@ -98,20 +93,16 @@ export async function getGameState() {
       throw error;
     }
     
-    // Return default state if no data found
     return data || { revealed_gender: null, is_revealed: false };
   } catch (error) {
     console.error('Error fetching game state:', error);
-    // Return default state on any error
     return { revealed_gender: null, is_revealed: false };
   }
 }
 
 export async function updateGameState(revealedGender, isRevealed) {
   try {
-    await initializeDatabase();
     
-    // First check if game_state has any rows
     const { data: existingRows, error: fetchError } = await supabase
       .from('game_state')
       .select('id')
@@ -123,7 +114,6 @@ export async function updateGameState(revealedGender, isRevealed) {
     }
     
     if (existingRows && existingRows.length === 0) {
-      // Insert first row
       const { error: insertError } = await supabase
         .from('game_state')
         .insert([{
@@ -136,7 +126,6 @@ export async function updateGameState(revealedGender, isRevealed) {
         throw insertError;
       }
     } else {
-      // Update existing row - get the most recent one
       const { data: latestRow, error: latestError } = await supabase
         .from('game_state')
         .select('id')
@@ -173,20 +162,16 @@ export async function updateGameState(revealedGender, isRevealed) {
 
 export async function resetGame() {
   try {
-    await initializeDatabase();
-    
-    // Delete all bets - use gte(0) to delete all rows (Supabase requires a condition)
     const { error: deleteBetsError } = await supabase
       .from('bets')
       .delete()
-      .gte('id', 0); // This will match all rows since all IDs are >= 0
+      .gte('id', 0);
     
     if (deleteBetsError) {
       console.error('Error deleting all bets:', deleteBetsError);
       throw deleteBetsError;
     }
     
-    // Reset game state - find the most recent game state and update it
     const { data: gameStateRows, error: fetchGameStateError } = await supabase
       .from('game_state')
       .select('id')
@@ -199,7 +184,6 @@ export async function resetGame() {
     }
     
     if (gameStateRows && gameStateRows.length > 0) {
-      // Update existing game state
       const { error: updateError } = await supabase
         .from('game_state')
         .update({
@@ -214,7 +198,6 @@ export async function resetGame() {
         throw updateError;
       }
     } else {
-      // Create initial game state if none exists
       const { error: insertError } = await supabase
         .from('game_state')
         .insert([{
