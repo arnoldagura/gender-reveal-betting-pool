@@ -1,17 +1,6 @@
-// lib/db.js (Updated with better error handling)
 import { sql } from '@vercel/postgres';
 
 let isInitialized = false;
-
-async function checkConnection() {
-  try {
-    await sql`SELECT 1`;
-    return true;
-  } catch (error) {
-    console.error('Database connection failed:', error.message);
-    throw new Error(`Database connection failed: ${error.message}`);
-  }
-}
 
 async function initializeDatabase() {
   if (isInitialized) return;
@@ -19,9 +8,13 @@ async function initializeDatabase() {
   try {
     console.log('🔧 Initializing database...');
     
-    // Check connection first
-    await checkConnection();
-    console.log('✅ Database connection verified');
+    // Debug: Check if POSTGRES_URL is available
+    console.log('POSTGRES_URL exists:', !!process.env.POSTGRES_URL);
+    if (process.env.POSTGRES_URL) {
+      console.log('POSTGRES_URL length:', process.env.POSTGRES_URL.length);
+    } else {
+      console.log('Available POSTGRES env vars:', Object.keys(process.env).filter(key => key.includes('POSTGRES')));
+    }
     
     // Create bets table
     await sql`
@@ -73,6 +66,16 @@ async function initializeDatabase() {
   } catch (error) {
     console.error('❌ Database initialization failed:', error);
     isInitialized = false;
+    
+    // Provide helpful error messages
+    if (error.message.includes('fetch failed')) {
+      throw new Error(`Database connection failed: POSTGRES_URL might be invalid or database server unreachable. Check your Vercel project settings.`);
+    }
+    
+    if (error.message.includes('missing_connection_string')) {
+      throw new Error(`Database connection failed: POSTGRES_URL environment variable is missing. Run 'vercel env pull .env.development.local' to get your environment variables.`);
+    }
+    
     throw error;
   }
 }
