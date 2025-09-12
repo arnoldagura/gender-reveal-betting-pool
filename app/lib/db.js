@@ -1,116 +1,53 @@
-import { sql } from '@vercel/postgres';
-
-let isInitialized = false;
-
-async function initializeDatabase() {
-  if (isInitialized) return;
-  
-  try {
-    console.log('🔧 Initializing database...');
-    
-    // Debug: Check if POSTGRES_URL is available
-    console.log('POSTGRES_URL exists:', !!process.env.POSTGRES_URL);
-    if (process.env.POSTGRES_URL) {
-      console.log('POSTGRES_URL length:', process.env.POSTGRES_URL.length);
-    } else {
-      console.log('Available POSTGRES env vars:', Object.keys(process.env).filter(key => key.includes('POSTGRES')));
-    }
-    
-    // Create bets table
-    await sql`
-      CREATE TABLE IF NOT EXISTS bets (
-        id SERIAL PRIMARY KEY,
-        name VARCHAR(255) NOT NULL,
-        gender VARCHAR(10) NOT NULL CHECK (gender IN ('boy', 'girl')),
-        amount DECIMAL(10, 2) NOT NULL CHECK (amount > 0),
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      )
-    `;
-    console.log('✅ Bets table ready');
-
-    // Create game_state table
-    await sql`
-      CREATE TABLE IF NOT EXISTS game_state (
-        id SERIAL PRIMARY KEY,
-        revealed_gender VARCHAR(10) CHECK (revealed_gender IN ('boy', 'girl')),
-        is_revealed BOOLEAN DEFAULT FALSE,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      )
-    `;
-    console.log('✅ Game state table ready');
-
-    // Insert initial game state if doesn't exist
-    const { rowCount } = await sql`
-      INSERT INTO game_state (is_revealed) 
-      SELECT FALSE
-      WHERE NOT EXISTS (SELECT 1 FROM game_state)
-      RETURNING id
-    `;
-    
-    if (rowCount > 0) {
-      console.log('✅ Initial game state created');
-    } else {
-      console.log('ℹ️ Game state already exists');
-    }
-
-    // Create indexes
-    await sql`CREATE INDEX IF NOT EXISTS idx_bets_gender ON bets(gender)`;
-    await sql`CREATE INDEX IF NOT EXISTS idx_bets_created_at ON bets(created_at)`;
-    console.log('✅ Indexes ready');
-
-    isInitialized = true;
-    console.log('🎉 Database initialization completed');
-    
-  } catch (error) {
-    console.error('❌ Database initialization failed:', error);
-    isInitialized = false;
-    
-    // Provide helpful error messages
-    if (error.message.includes('fetch failed')) {
-      throw new Error(`Database connection failed: POSTGRES_URL might be invalid or database server unreachable. Check your Vercel project settings.`);
-    }
-    
-    if (error.message.includes('missing_connection_string')) {
-      throw new Error(`Database connection failed: POSTGRES_URL environment variable is missing. Run 'vercel env pull .env.development.local' to get your environment variables.`);
-    }
-    
-    throw error;
-  }
-}
+import { supabase } from './supabase';
 
 export async function getAllBets() {
   try {
-    await initializeDatabase();
-    const { rows } = await sql`
-      SELECT id, name, gender, amount, created_at 
-      FROM bets 
-      ORDER BY created_at DESC
-    `;
-    return rows;
-  } catch (error) {
-    console.error('Error fetching bets:', error);
-    
-    // Return empty array if tables don't exist yet
-    if (error.message.includes('does not exist')) {
-      console.log('Tables not initialized yet, returning empty array');
-      return [];
+    const { data, error } = await supabase
+      .from('bets')
+      .select('id, name, gender, amount, created_at')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Supabase error fetching bets:', error);
+      
+      // Return empty array if tables don't exist yet
+      if (error.code === '42P01') {
+        console.log('Bets table not ready yet, returning empty array');
+        return [];
+      }
+      
+      throw error;
     }
     
-    throw new Error(`Failed to fetch bets: ${error.message}`);
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching bets:', error);
+    return [];
   }
 }
 
 export async function addBet(name, gender, amount) {
   try {
     await initializeDatabase();
-    const { rows } = await sql`
-      INSERT INTO bets (name, gender, amount) 
-      VALUES (${name}, ${gender}, ${amount})
-      RETURNING id, name, gender, amount, created_at
-    `;
-    return rows[0];
+    
+    const { data, error } = await supabase
+      .from('bets')
+      .insert([
+        { 
+          name: name.trim(), 
+          gender, 
+          amount: parseFloat(amount) 
+        }
+      ])
+      .select('id, name, gender, amount, created_at')
+      .single();
+
+    if (error) {
+      console.error('Supabase error adding bet:', error);
+      throw error;
+    }
+    
+    return data;
   } catch (error) {
     console.error('Error adding bet:', error);
     throw new Error(`Failed to add bet: ${error.message}`);
@@ -120,7 +57,17 @@ export async function addBet(name, gender, amount) {
 export async function deleteBet(id) {
   try {
     await initializeDatabase();
-    await sql`DELETE FROM bets WHERE id = ${id}`;
+    
+    const { error } = await supabase
+      .from('bets')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Supabase error deleting bet:', error);
+      throw error;
+    }
+    
     return { success: true };
   } catch (error) {
     console.error('Error deleting bet:', error);
@@ -131,25 +78,32 @@ export async function deleteBet(id) {
 export async function getGameState() {
   try {
     await initializeDatabase();
-    const { rows } = await sql`
-      SELECT revealed_gender, is_revealed 
-      FROM game_state 
-      ORDER BY id DESC 
-      LIMIT 1
-    `;
     
-    // Return default state if no rows found
-    return rows[0] || { revealed_gender: null, is_revealed: false };
-  } catch (error) {
-    console.error('Error fetching game state:', error);
-    
-    // Return default state if tables don't exist yet
-    if (error.message.includes('does not exist')) {
-      console.log('Game state table not ready yet, returning default state');
-      return { revealed_gender: null, is_revealed: false };
+    const { data, error } = await supabase
+      .from('game_state')
+      .select('revealed_gender, is_revealed')
+      .order('id', { ascending: false })
+      .limit(1)
+      .maybeSingle(); // Use maybeSingle() to handle empty results gracefully
+
+    if (error) {
+      console.error('Supabase error fetching game state:', error);
+      
+      // Return default state if tables don't exist yet
+      if (error.code === '42P01') {
+        console.log('Game state table not ready yet, returning default state');
+        return { revealed_gender: null, is_revealed: false };
+      }
+      
+      throw error;
     }
     
-    throw new Error(`Failed to fetch game state: ${error.message}`);
+    // Return default state if no data found
+    return data || { revealed_gender: null, is_revealed: false };
+  } catch (error) {
+    console.error('Error fetching game state:', error);
+    // Return default state on any error
+    return { revealed_gender: null, is_revealed: false };
   }
 }
 
@@ -158,23 +112,56 @@ export async function updateGameState(revealedGender, isRevealed) {
     await initializeDatabase();
     
     // First check if game_state has any rows
-    const { rows: existingRows } = await sql`SELECT id FROM game_state LIMIT 1`;
+    const { data: existingRows, error: fetchError } = await supabase
+      .from('game_state')
+      .select('id')
+      .limit(1);
     
-    if (existingRows.length === 0) {
+    if (fetchError) {
+      console.error('Error checking existing game state:', fetchError);
+      throw fetchError;
+    }
+    
+    if (existingRows && existingRows.length === 0) {
       // Insert first row
-      await sql`
-        INSERT INTO game_state (revealed_gender, is_revealed)
-        VALUES (${revealedGender}, ${isRevealed})
-      `;
+      const { error: insertError } = await supabase
+        .from('game_state')
+        .insert([{
+          revealed_gender: revealedGender,
+          is_revealed: isRevealed
+        }]);
+      
+      if (insertError) {
+        console.error('Supabase error inserting game state:', insertError);
+        throw insertError;
+      }
     } else {
-      // Update existing row
-      await sql`
-        UPDATE game_state 
-        SET revealed_gender = ${revealedGender}, 
-            is_revealed = ${isRevealed},
-            updated_at = CURRENT_TIMESTAMP
-        WHERE id = (SELECT id FROM game_state ORDER BY id DESC LIMIT 1)
-      `;
+      // Update existing row - get the most recent one
+      const { data: latestRow, error: latestError } = await supabase
+        .from('game_state')
+        .select('id')
+        .order('id', { ascending: false })
+        .limit(1)
+        .single();
+      
+      if (latestError) {
+        console.error('Error getting latest game state:', latestError);
+        throw latestError;
+      }
+      
+      const { error: updateError } = await supabase
+        .from('game_state')
+        .update({
+          revealed_gender: revealedGender,
+          is_revealed: isRevealed,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', latestRow.id);
+      
+      if (updateError) {
+        console.error('Supabase error updating game state:', updateError);
+        throw updateError;
+      }
     }
     
     return { success: true };
@@ -188,17 +175,60 @@ export async function resetGame() {
   try {
     await initializeDatabase();
     
-    // Delete all bets
-    await sql`DELETE FROM bets`;
+    // Delete all bets - use gte(0) to delete all rows (Supabase requires a condition)
+    const { error: deleteBetsError } = await supabase
+      .from('bets')
+      .delete()
+      .gte('id', 0); // This will match all rows since all IDs are >= 0
     
-    // Reset game state
-    await sql`
-      UPDATE game_state 
-      SET revealed_gender = NULL, 
-          is_revealed = FALSE,
-          updated_at = CURRENT_TIMESTAMP
-    `;
+    if (deleteBetsError) {
+      console.error('Error deleting all bets:', deleteBetsError);
+      throw deleteBetsError;
+    }
     
+    // Reset game state - find the most recent game state and update it
+    const { data: gameStateRows, error: fetchGameStateError } = await supabase
+      .from('game_state')
+      .select('id')
+      .order('id', { ascending: false })
+      .limit(1);
+    
+    if (fetchGameStateError) {
+      console.error('Error fetching game state for reset:', fetchGameStateError);
+      throw fetchGameStateError;
+    }
+    
+    if (gameStateRows && gameStateRows.length > 0) {
+      // Update existing game state
+      const { error: updateError } = await supabase
+        .from('game_state')
+        .update({
+          revealed_gender: null,
+          is_revealed: false,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', gameStateRows[0].id);
+      
+      if (updateError) {
+        console.error('Error updating game state during reset:', updateError);
+        throw updateError;
+      }
+    } else {
+      // Create initial game state if none exists
+      const { error: insertError } = await supabase
+        .from('game_state')
+        .insert([{
+          revealed_gender: null,
+          is_revealed: false
+        }]);
+      
+      if (insertError) {
+        console.error('Error creating initial game state during reset:', insertError);
+        throw insertError;
+      }
+    }
+    
+    console.log('✅ Game reset completed successfully');
     return { success: true };
   } catch (error) {
     console.error('Error resetting game:', error);

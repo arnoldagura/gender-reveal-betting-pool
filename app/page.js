@@ -255,15 +255,15 @@ export default function ViewOnlyStats() {
       )}
 
       {/* All Bets List */}
-      {safeBets.length > 0 && (
+      {bets.length > 0 && (
         <div className='card'>
           <div className='card-header'>
             <span className='card-icon'>📋</span>
-            <h2 className='card-title'>All Bets ({safeBets.length})</h2>
+            <h2 className='card-title'>All Bets ({bets.length})</h2>
           </div>
 
           <div className='bets-grid'>
-            {safeBets.map((bet) => (
+            {bets.map((bet) => (
               <div
                 key={bet.id}
                 className={`bet-card ${
