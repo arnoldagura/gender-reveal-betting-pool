@@ -144,11 +144,6 @@ export default function Page() {
 
   // Calculate totals and winners
   const totalPot = bets.reduce((sum, bet) => sum + bet.amount, 0);
-  const winners = isRevealed
-    ? bets.filter((bet) => bet.gender === revealedGender)
-    : [];
-  const winnerCount = winners.length;
-  const winningsPerWinner = winnerCount > 0 ? totalPot / winnerCount : 0;
 
   const boyBets = bets.filter((bet) => bet.gender === 'boy');
   const girlBets = bets.filter((bet) => bet.gender === 'girl');
@@ -158,14 +153,17 @@ export default function Page() {
   const boyWinningRatio = boyTotal > 0 ? totalPot / boyTotal : 0;
   const girlWinningRatio = girlTotal > 0 ? totalPot / girlTotal : 0;
 
-  if (loading) {
-    return (
-      <div className='container' style={{ textAlign: 'center', padding: '100px 0' }}>
-        <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🎲</div>
-        <h2>Loading betting pool...</h2>
-      </div>
-    );
-  }
+  const winners = isRevealed
+    ? bets.filter((bet) => bet.gender === revealedGender)
+    : [];
+  const winnerCount = winners.length;
+
+  // Calculate individual winnings based on bet amount and win ratio
+  const calculateWinnings = (bet) => {
+    if (!isRevealed || bet.gender !== revealedGender) return 0;
+    const winRatio = bet.gender === 'boy' ? boyWinningRatio : girlWinningRatio;
+    return bet.amount * winRatio;
+  };
 
   return (
     <div className='container'>
@@ -413,7 +411,7 @@ export default function Page() {
                     <div className='winner-name'>{winner.name}</div>
                     <div>Bet: PHP {winner.amount.toFixed(2)}</div>
                     <div className='winner-payout'>
-                      Wins: PHP {winningsPerWinner.toFixed(2)}
+                      Wins: PHP {calculateWinnings(winner).toFixed(2)}
                     </div>
                   </div>
                 ))}
