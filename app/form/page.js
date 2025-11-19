@@ -11,21 +11,8 @@ export default function Page() {
   const [notification, setNotification] = useState(null);
   const [editingBet, setEditingBet] = useState(null);
 
-  // Load data from localStorage on component mount
   useEffect(() => {
-    const savedBets = localStorage.getItem('genderRevealBets');
-    const savedReveal = localStorage.getItem('revealedGender');
-    const savedIsRevealed = localStorage.getItem('isRevealed');
-
-    if (savedBets) {
-      setBets(JSON.parse(savedBets));
-    }
-    if (savedReveal && (savedReveal === 'boy' || savedReveal === 'girl')) {
-      setRevealedGender(savedReveal);
-    }
-    if (savedIsRevealed) {
-      setIsRevealed(JSON.parse(savedIsRevealed));
-    }
+    fetchData();
   }, []);
 
   // Save to localStorage whenever state changes
@@ -59,7 +46,10 @@ export default function Page() {
     }
 
     if (isRevealed) {
-      showNotification('Betting is closed - gender has been revealed!', 'error');
+      showNotification(
+        'Betting is closed - gender has been revealed!',
+        'error'
+      );
       return;
     }
 
@@ -77,7 +67,12 @@ export default function Page() {
 
         setBets([...bets, bet]);
         setNewBet({ name: '', gender: 'boy', amount: '' });
-        showNotification(`Bet placed successfully! PHP ${amount.toFixed(2)} on ${newBet.gender}`, 'success');
+        showNotification(
+          `Bet placed successfully! PHP ${amount.toFixed(2)} on ${
+            newBet.gender
+          }`,
+          'success'
+        );
       } catch (error) {
         showNotification('Failed to place bet. Please try again.', 'error');
       } finally {
@@ -86,7 +81,7 @@ export default function Page() {
     }, 500);
   };
 
-  const removeBet = (id) => {
+  const removeBet = async (id) => {
     if (isRevealed) {
       showNotification('Cannot remove bets after reveal!', 'error');
       return;
@@ -113,25 +108,62 @@ export default function Page() {
       return;
     }
 
-    setBets(bets.map((bet) =>
-      bet.id === editingBet.id ? { ...editingBet, amount: parseFloat(editingBet.amount) } : bet
-    ));
+    setBets(
+      bets.map((bet) =>
+        bet.id === editingBet.id
+          ? { ...editingBet, amount: parseFloat(editingBet.amount) }
+          : bet
+      )
+    );
     setEditingBet(null);
     showNotification('Bet updated successfully', 'success');
   };
 
-  const revealGender = (gender) => {
-    setRevealedGender(gender);
-    setIsRevealed(true);
+  const revealGender = async (gender) => {
+    try {
+      const response = await fetch('/api/game-state', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          revealedGender: gender,
+          isRevealed: true,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to reveal gender');
+      }
+
+      await fetchData();
+    } catch (error) {
+      alert('Error revealing gender: ' + error.message);
+    }
   };
 
-  const resetGame = () => {
-    setBets([]);
-    setRevealedGender(null);
-    setIsRevealed(false);
-    localStorage.removeItem('genderRevealBets');
-    localStorage.removeItem('revealedGender');
-    localStorage.removeItem('isRevealed');
+  const resetGame = async () => {
+    if (
+      !confirm(
+        'Are you sure you want to start a new game? This will delete all bets!'
+      )
+    ) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/reset', {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to reset game');
+      }
+
+      await fetchData();
+    } catch (error) {
+      alert('Error resetting game: ' + error.message);
+    }
   };
 
   // Calculate totals and winners
@@ -258,6 +290,7 @@ export default function Page() {
                     setNewBet({ ...newBet, name: e.target.value })
                   }
                   required
+                  disabled={submitting}
                 />
               </div>
 
@@ -269,6 +302,7 @@ export default function Page() {
                   onChange={(e) =>
                     setNewBet({ ...newBet, gender: e.target.value })
                   }
+                  disabled={submitting}
                 >
                   <option value='boy'>👶 Boy</option>
                   <option value='girl'>👧 Girl</option>
@@ -288,6 +322,7 @@ export default function Page() {
                     setNewBet({ ...newBet, amount: e.target.value })
                   }
                   required
+                  disabled={submitting}
                 />
               </div>
             </div>
@@ -377,10 +412,18 @@ export default function Page() {
                       step='0.01'
                     />
                     <div className='edit-actions'>
-                      <button onClick={saveEdit} className='btn-save' title='Save'>
+                      <button
+                        onClick={saveEdit}
+                        className='btn-save'
+                        title='Save'
+                      >
                         ✓
                       </button>
-                      <button onClick={cancelEdit} className='btn-cancel' title='Cancel'>
+                      <button
+                        onClick={cancelEdit}
+                        className='btn-cancel'
+                        title='Cancel'
+                      >
                         ✕
                       </button>
                     </div>
@@ -392,7 +435,9 @@ export default function Page() {
                       <span className={`bet-gender ${bet.gender}`}>
                         {bet.gender === 'boy' ? '👶 Boy' : '👧 Girl'}
                       </span>
-                      <div className='bet-amount'>PHP {bet.amount.toFixed(2)}</div>
+                      <div className='bet-amount'>
+                        PHP {bet.amount.toFixed(2)}
+                      </div>
                       {isRevealed && bet.gender === revealedGender && (
                         <div className='winner-badge'>🎉 Winner!</div>
                       )}
