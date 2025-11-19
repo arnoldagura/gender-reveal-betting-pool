@@ -13,6 +13,7 @@ export default function Page() {
   const [toast, setToast] = useState({ show: false, message: '', type: '' });
   const [confirmModal, setConfirmModal] = useState(null);
   const [resetting, setResetting] = useState(false);
+  const [activeTab, setActiveTab] = useState('all'); // 'all' or 'winners'
 
   // Toast notification helper
   const showToast = (message, type = 'success') => {
@@ -43,7 +44,7 @@ export default function Page() {
     try {
       const [betsResponse, gameStateResponse] = await Promise.all([
         fetch('/api/bets'),
-        fetch('/api/game-state')
+        fetch('/api/game-state'),
       ]);
 
       const betsData = await betsResponse.json();
@@ -79,10 +80,14 @@ export default function Page() {
 
     // Check for duplicate name
     const duplicateName = bets.find(
-      bet => bet.name.toLowerCase().trim() === newBet.name.toLowerCase().trim()
+      (bet) =>
+        bet.name.toLowerCase().trim() === newBet.name.toLowerCase().trim()
     );
     if (duplicateName) {
-      showToast(`Name "${newBet.name}" already exists! Please use a different name.`, 'error');
+      showToast(
+        `Name "${newBet.name}" already exists! Please use a different name.`,
+        'error'
+      );
       return;
     }
 
@@ -97,7 +102,7 @@ export default function Page() {
         body: JSON.stringify({
           name: newBet.name,
           gender: newBet.gender,
-          amount: parseFloat(newBet.amount)
+          amount: parseFloat(newBet.amount),
         }),
       });
 
@@ -126,7 +131,9 @@ export default function Page() {
     const bet = bets.find((b) => b.id === id);
     showConfirmModal(
       'Delete Bet',
-      `Are you sure you want to remove ${bet?.name}'s bet of PHP ${bet?.amount?.toFixed(2)}?`,
+      `Are you sure you want to remove ${
+        bet?.name
+      }'s bet of PHP ${bet?.amount?.toFixed(2)}?`,
       async () => {
         try {
           const response = await fetch(`/api/bets?id=${id}`, {
@@ -170,11 +177,15 @@ export default function Page() {
 
     // Check for duplicate name (excluding current bet)
     const duplicateName = bets.find(
-      bet => bet.id !== editingBet.id &&
-             bet.name.toLowerCase().trim() === editingBet.name.toLowerCase().trim()
+      (bet) =>
+        bet.id !== editingBet.id &&
+        bet.name.toLowerCase().trim() === editingBet.name.toLowerCase().trim()
     );
     if (duplicateName) {
-      showToast(`Name "${editingBet.name}" already exists! Please use a different name.`, 'error');
+      showToast(
+        `Name "${editingBet.name}" already exists! Please use a different name.`,
+        'error'
+      );
       return;
     }
 
@@ -190,7 +201,7 @@ export default function Page() {
           id: editingBet.id,
           name: editingBet.name,
           gender: editingBet.gender,
-          amount: parseFloat(editingBet.amount)
+          amount: parseFloat(editingBet.amount),
         }),
       });
 
@@ -223,7 +234,7 @@ export default function Page() {
             },
             body: JSON.stringify({
               revealedGender: gender,
-              isRevealed: true
+              isRevealed: true,
             }),
           });
 
@@ -276,19 +287,31 @@ export default function Page() {
   const boyTotal = boyBets.reduce((sum, bet) => sum + bet.amount, 0);
   const girlTotal = girlBets.reduce((sum, bet) => sum + bet.amount, 0);
 
-  const boyWinningRatio = boyTotal > 0 ? totalPot / boyTotal : 0;
-  const girlWinningRatio = girlTotal > 0 ? totalPot / girlTotal : 0;
+  // Payout ratio: multiply bet by this to get total payout (includes original bet)
+  const boyPayoutRatio = boyTotal > 0 ? totalPot / boyTotal : 0;
+  const girlPayoutRatio = girlTotal > 0 ? totalPot / girlTotal : 0;
+
+  // Profit ratio: multiply bet by this to get profit only (excludes original bet)
+  const boyProfitRatio = boyPayoutRatio > 0 ? boyPayoutRatio - 1 : 0;
+  const girlProfitRatio = girlPayoutRatio > 0 ? girlPayoutRatio - 1 : 0;
 
   const winners = isRevealed
     ? bets.filter((bet) => bet.gender === revealedGender)
     : [];
   const winnerCount = winners.length;
 
-  // Calculate individual winnings based on bet amount and win ratio
+  // Calculate individual winnings based on bet amount and payout ratio
   const calculateWinnings = (bet) => {
     if (!isRevealed || bet.gender !== revealedGender) return 0;
-    const winRatio = bet.gender === 'boy' ? boyWinningRatio : girlWinningRatio;
-    return bet.amount * winRatio;
+    const payoutRatio = bet.gender === 'boy' ? boyPayoutRatio : girlPayoutRatio;
+    return bet.amount * payoutRatio;
+  };
+
+  // Calculate profit (winnings minus original bet)
+  const calculateProfit = (bet) => {
+    if (!isRevealed || bet.gender !== revealedGender) return 0;
+    const winnings = calculateWinnings(bet);
+    return winnings - bet.amount;
   };
 
   return (
@@ -321,7 +344,7 @@ export default function Page() {
             <div className='win-ratio'>
               <span className='ratio-label'>Win Ratio</span>
               <span className='ratio-value'>
-                {boyWinningRatio > 0 ? `${boyWinningRatio.toFixed(2)}x` : '--'}
+                {boyPayoutRatio > 0 ? `${boyPayoutRatio.toFixed(2)}x` : '--'}
               </span>
             </div>
 
@@ -333,9 +356,38 @@ export default function Page() {
             </div>
 
             <div className='payout-preview'>
-              Bet PHP 10 → Win PHP{' '}
-              {boyWinningRatio > 0 ? (10 * boyWinningRatio).toFixed(2) : '0.00'}
+              Bet PHP 100 → Get PHP{' '}
+              {boyPayoutRatio > 0 ? (100 * boyPayoutRatio).toFixed(2) : '0.00'}
+              {boyProfitRatio > 0 && (
+                <span
+                  style={{
+                    display: 'block',
+                    fontSize: '0.85em',
+                    opacity: 0.9,
+                    marginTop: '4px',
+                  }}
+                >
+                  (Profit: PHP {(100 * boyProfitRatio).toFixed(2)})
+                </span>
+              )}
             </div>
+
+            {isRevealed && revealedGender === 'boy' && (
+              <div
+                style={{
+                  background: '#10b981',
+                  color: 'white',
+                  padding: '12px',
+                  borderRadius: '8px',
+                  textAlign: 'center',
+                  marginTop: '12px',
+                  fontWeight: '700',
+                  fontSize: '1rem',
+                }}
+              >
+                🏆 WINNER! 🏆
+              </div>
+            )}
           </div>
 
           {/* Girl Odds Card */}
@@ -348,9 +400,7 @@ export default function Page() {
             <div className='win-ratio'>
               <span className='ratio-label'>Win Ratio</span>
               <span className='ratio-value'>
-                {girlWinningRatio > 0
-                  ? `${girlWinningRatio.toFixed(2)}x`
-                  : '--'}
+                {girlPayoutRatio > 0 ? `${girlPayoutRatio.toFixed(2)}x` : '--'}
               </span>
             </div>
 
@@ -362,11 +412,39 @@ export default function Page() {
             </div>
 
             <div className='payout-preview'>
-              Bet PHP 10 → Win PHP{' '}
-              {girlWinningRatio > 0
-                ? (10 * girlWinningRatio).toFixed(2)
+              Bet PHP 100 → Get PHP{' '}
+              {girlPayoutRatio > 0
+                ? (100 * girlPayoutRatio).toFixed(2)
                 : '0.00'}
+              {girlProfitRatio > 0 && (
+                <span
+                  style={{
+                    display: 'block',
+                    fontSize: '0.85em',
+                    opacity: 0.9,
+                    marginTop: '4px',
+                  }}
+                >
+                  (Profit: PHP {(100 * girlProfitRatio).toFixed(2)})
+                </span>
+              )}
             </div>
+            {isRevealed && revealedGender === 'girl' && (
+              <div
+                style={{
+                  background: '#10b981',
+                  color: 'white',
+                  padding: '12px',
+                  borderRadius: '8px',
+                  textAlign: 'center',
+                  marginTop: '12px',
+                  fontWeight: '700',
+                  fontSize: '1rem',
+                }}
+              >
+                🏆 WINNER! 🏆
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -458,53 +536,174 @@ export default function Page() {
         </div>
       )}
 
-      {/* All Bets List */}
+      {/* Tabbed Bets/Winners Section */}
       {bets.length > 0 && (
         <div className='card'>
-          <div className='card-header'>
-            <span className='card-icon'>📋</span>
-            <h2 className='card-title'>All Bets ({bets.length})</h2>
+          {/* Tab Headers */}
+          <div style={{
+            display: 'flex',
+            borderBottom: '2px solid #e2e8f0',
+            marginBottom: '24px'
+          }}>
+            <button
+              onClick={() => setActiveTab('all')}
+              style={{
+                flex: 1,
+                padding: '16px 24px',
+                background: activeTab === 'all' ? 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)' : 'transparent',
+                color: activeTab === 'all' ? 'white' : '#64748b',
+                border: 'none',
+                borderBottom: activeTab === 'all' ? '3px solid #7c3aed' : '3px solid transparent',
+                cursor: 'pointer',
+                fontSize: '1rem',
+                fontWeight: '600',
+                transition: 'all 0.3s ease',
+                borderRadius: '8px 8px 0 0'
+              }}
+            >
+              📋 All Bets ({bets.length})
+            </button>
+            {isRevealed && (
+              <button
+                onClick={() => setActiveTab('winners')}
+                style={{
+                  flex: 1,
+                  padding: '16px 24px',
+                  background: activeTab === 'winners' ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' : 'transparent',
+                  color: activeTab === 'winners' ? 'white' : '#64748b',
+                  border: 'none',
+                  borderBottom: activeTab === 'winners' ? '3px solid #d97706' : '3px solid transparent',
+                  cursor: 'pointer',
+                  fontSize: '1rem',
+                  fontWeight: '600',
+                  transition: 'all 0.3s ease',
+                  borderRadius: '8px 8px 0 0'
+                }}
+              >
+                🏆 Winners ({winners.length})
+              </button>
+            )}
           </div>
 
-          <div className='bets-grid'>
-            {bets.map((bet) => (
-              <div
-                key={bet.id}
-                className={`bet-card ${
-                  isRevealed && bet.gender === revealedGender ? 'winner' : ''
-                }`}
-              >
-                <div className='bet-info'>
-                  <div className='bet-name'>{bet.name}</div>
-                  <span className={`bet-gender ${bet.gender}`}>
-                    {bet.gender === 'boy' ? '👶 Boy' : '👧 Girl'}
-                  </span>
-                  <div className='bet-amount'>PHP {bet.amount.toFixed(2)}</div>
-                  {isRevealed && bet.gender === revealedGender && (
-                    <div className='winner-badge'>🎉 Winner!</div>
+          {/* Tab Content - All Bets */}
+          {activeTab === 'all' && (
+            <div className='bets-grid'>
+              {bets.map((bet) => (
+                <div
+                  key={bet.id}
+                  className={`bet-card ${
+                    isRevealed && bet.gender === revealedGender ? 'winner' : ''
+                  }`}
+                >
+                  <div className='bet-info'>
+                    <div className='bet-name'>{bet.name}</div>
+                    <span className={`bet-gender ${bet.gender}`}>
+                      {bet.gender === 'boy' ? '👶 Boy' : '👧 Girl'}
+                    </span>
+                    <div className='bet-amount'>PHP {bet.amount.toFixed(2)}</div>
+                    {isRevealed && bet.gender === revealedGender && (
+                      <div className='winner-badge'>🎉 Winner!</div>
+                    )}
+                  </div>
+                  {!isRevealed && (
+                    <div className='bet-actions'>
+                      <button
+                        onClick={() => startEditBet(bet)}
+                        className='btn-edit'
+                        title='Edit bet'
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        onClick={() => removeBet(bet.id)}
+                        className='btn-remove'
+                        title='Remove bet'
+                      >
+                        ✕
+                      </button>
+                    </div>
                   )}
                 </div>
-                {!isRevealed && (
-                  <div className='bet-actions'>
-                    <button
-                      onClick={() => startEditBet(bet)}
-                      className='btn-edit'
-                      title='Edit bet'
-                    >
-                      ✏️
-                    </button>
-                    <button
-                      onClick={() => removeBet(bet.id)}
-                      className='btn-remove'
-                      title='Remove bet'
-                    >
-                      ✕
-                    </button>
-                  </div>
-                )}
+              ))}
+            </div>
+          )}
+
+          {/* Tab Content - Winners */}
+          {activeTab === 'winners' && isRevealed && (
+            <div>
+              <div style={{
+                textAlign: 'center',
+                padding: '24px',
+                background: 'linear-gradient(135deg, #fef3c7 0%, #ddd6fe 100%)',
+                borderRadius: '12px',
+                marginBottom: '24px',
+                border: '2px solid #e0e7ff'
+              }}>
+                <h2 style={{
+                  fontSize: '1.5rem',
+                  fontWeight: '700',
+                  color: '#1e293b',
+                  marginBottom: '8px'
+                }}>
+                  🎊 The Results Are In! 🎊
+                </h2>
+                <div style={{
+                  fontSize: '2rem',
+                  fontWeight: '800',
+                  background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  marginTop: '8px'
+                }}>
+                  It's a {revealedGender === 'boy' ? 'Boy! 👶' : 'Girl! 👧'}
+                </div>
               </div>
-            ))}
-          </div>
+
+              {winners.length > 0 ? (
+                <div className='winners-grid'>
+                  {winners.map((winner) => (
+                    <div key={winner.id} className='winner-card'>
+                      <div className='winner-name'>{winner.name}</div>
+                      <div>Bet: PHP {winner.amount.toFixed(2)}</div>
+                      <div className='winner-payout'>
+                        Total Payout: PHP {calculateWinnings(winner).toFixed(2)}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: '0.9em',
+                          opacity: 0.9,
+                          marginTop: '4px',
+                        }}
+                      >
+                        Profit: PHP {calculateProfit(winner).toFixed(2)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{
+                  textAlign: 'center',
+                  padding: '48px 24px',
+                  background: '#f8fafc',
+                  borderRadius: '12px'
+                }}>
+                  <div style={{ fontSize: '3rem', marginBottom: '16px' }}>😅</div>
+                  <h3 style={{
+                    fontSize: '1.25rem',
+                    fontWeight: '700',
+                    color: '#1e293b',
+                    marginBottom: '8px'
+                  }}>
+                    No Winners!
+                  </h3>
+                  <p style={{ color: '#64748b', fontSize: '1rem' }}>
+                    Nobody bet on {revealedGender === 'boy' ? 'boy' : 'girl'}! The
+                    house wins this time! 🏠
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -529,47 +728,15 @@ export default function Page() {
         </div>
       )}
 
-      {/* Winners Display */}
-      {isRevealed && (
-        <div className='winners-section'>
-          <h2 className='card-title'>🎊 The Results Are In! 🎊</h2>
-          <div className='result-announcement'>
-            It's a {revealedGender === 'boy' ? 'Boy! 👶' : 'Girl! 👧'}
-          </div>
-
-          {winners.length > 0 ? (
-            <div>
-              <h3 className='card-title'>🏆 Winners ({winners.length}):</h3>
-              <div className='winners-grid'>
-                {winners.map((winner) => (
-                  <div key={winner.id} className='winner-card'>
-                    <div className='winner-name'>{winner.name}</div>
-                    <div>Bet: PHP {winner.amount.toFixed(2)}</div>
-                    <div className='winner-payout'>
-                      Wins: PHP {calculateWinnings(winner).toFixed(2)}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className='no-winners'>
-              <h3>😅 No Winners!</h3>
-              <p>
-                Nobody bet on {revealedGender === 'boy' ? 'boy' : 'girl'}! The
-                house wins this time! 🏠
-              </p>
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Reset Button */}
       <div className='actions'>
         <button onClick={resetGame} className='btn-reset' disabled={resetting}>
           {resetting ? (
             <>
-              <span className='loader' style={{borderTopColor: 'white'}}></span>
+              <span
+                className='loader'
+                style={{ borderTopColor: 'white' }}
+              ></span>
               Resetting...
             </>
           ) : (
@@ -646,7 +813,11 @@ export default function Page() {
                 >
                   Cancel
                 </button>
-                <button type='submit' className='btn-primary' disabled={submitting}>
+                <button
+                  type='submit'
+                  className='btn-primary'
+                  disabled={submitting}
+                >
                   {submitting ? 'Updating...' : 'Update Bet'}
                 </button>
               </div>
@@ -671,11 +842,17 @@ export default function Page() {
           <div className='modal-content' onClick={(e) => e.stopPropagation()}>
             <div className='modal-header'>
               <h3 className='modal-title'>{confirmModal.title}</h3>
-              <button className='modal-close' onClick={closeConfirmModal}>✕</button>
+              <button className='modal-close' onClick={closeConfirmModal}>
+                ✕
+              </button>
             </div>
             <div className='modal-body'>
               <div className='modal-icon'>
-                {confirmModal.type === 'danger' ? '⚠️' : confirmModal.type === 'info' ? '❓' : '⚠️'}
+                {confirmModal.type === 'danger'
+                  ? '⚠️'
+                  : confirmModal.type === 'info'
+                  ? '❓'
+                  : '⚠️'}
               </div>
               <p className='modal-message'>{confirmModal.message}</p>
             </div>
@@ -683,7 +860,10 @@ export default function Page() {
               <button className='btn-modal-cancel' onClick={closeConfirmModal}>
                 Cancel
               </button>
-              <button className={`btn-modal-confirm ${confirmModal.type}`} onClick={handleConfirm}>
+              <button
+                className={`btn-modal-confirm ${confirmModal.type}`}
+                onClick={handleConfirm}
+              >
                 Confirm
               </button>
             </div>
