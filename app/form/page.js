@@ -449,6 +449,27 @@ export default function Page() {
         </div>
       )}
 
+      {/* Gender Reveal Section */}
+      {bets.length > 0 && !isRevealed && (
+        <div className='reveal-section'>
+          <h2 className='reveal-title'>🎉 Ready to Reveal? 🎉</h2>
+          <div className='reveal-buttons'>
+            <button
+              onClick={() => revealGender('boy')}
+              className='btn-reveal boy'
+            >
+              It's a Boy! 👶
+            </button>
+            <button
+              onClick={() => revealGender('girl')}
+              className='btn-reveal girl'
+            >
+              It's a Girl! 👧
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Betting Form */}
       {!isRevealed && (
         <div className='card'>
@@ -540,25 +561,33 @@ export default function Page() {
       {bets.length > 0 && (
         <div className='card'>
           {/* Tab Headers */}
-          <div style={{
-            display: 'flex',
-            borderBottom: '2px solid #e2e8f0',
-            marginBottom: '24px'
-          }}>
+          <div
+            style={{
+              display: 'flex',
+              borderBottom: '2px solid #e2e8f0',
+              marginBottom: '24px',
+            }}
+          >
             <button
               onClick={() => setActiveTab('all')}
               style={{
                 flex: 1,
                 padding: '16px 24px',
-                background: activeTab === 'all' ? 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)' : 'transparent',
+                background:
+                  activeTab === 'all'
+                    ? 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)'
+                    : 'transparent',
                 color: activeTab === 'all' ? 'white' : '#64748b',
                 border: 'none',
-                borderBottom: activeTab === 'all' ? '3px solid #7c3aed' : '3px solid transparent',
+                borderBottom:
+                  activeTab === 'all'
+                    ? '3px solid #7c3aed'
+                    : '3px solid transparent',
                 cursor: 'pointer',
                 fontSize: '1rem',
                 fontWeight: '600',
                 transition: 'all 0.3s ease',
-                borderRadius: '8px 8px 0 0'
+                borderRadius: '8px 8px 0 0',
               }}
             >
               📋 All Bets ({bets.length})
@@ -569,15 +598,21 @@ export default function Page() {
                 style={{
                   flex: 1,
                   padding: '16px 24px',
-                  background: activeTab === 'winners' ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' : 'transparent',
+                  background:
+                    activeTab === 'winners'
+                      ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
+                      : 'transparent',
                   color: activeTab === 'winners' ? 'white' : '#64748b',
                   border: 'none',
-                  borderBottom: activeTab === 'winners' ? '3px solid #d97706' : '3px solid transparent',
+                  borderBottom:
+                    activeTab === 'winners'
+                      ? '3px solid #d97706'
+                      : '3px solid transparent',
                   cursor: 'pointer',
                   fontSize: '1rem',
                   fontWeight: '600',
                   transition: 'all 0.3s ease',
-                  borderRadius: '8px 8px 0 0'
+                  borderRadius: '8px 8px 0 0',
                 }}
               >
                 🏆 Winners ({winners.length})
@@ -600,7 +635,9 @@ export default function Page() {
                     <span className={`bet-gender ${bet.gender}`}>
                       {bet.gender === 'boy' ? '👶 Boy' : '👧 Girl'}
                     </span>
-                    <div className='bet-amount'>PHP {bet.amount.toFixed(2)}</div>
+                    <div className='bet-amount'>
+                      PHP {bet.amount.toFixed(2)}
+                    </div>
                     {isRevealed && bet.gender === revealedGender && (
                       <div className='winner-badge'>🎉 Winner!</div>
                     )}
@@ -631,30 +668,38 @@ export default function Page() {
           {/* Tab Content - Winners */}
           {activeTab === 'winners' && isRevealed && (
             <div>
-              <div style={{
-                textAlign: 'center',
-                padding: '24px',
-                background: 'linear-gradient(135deg, #fef3c7 0%, #ddd6fe 100%)',
-                borderRadius: '12px',
-                marginBottom: '24px',
-                border: '2px solid #e0e7ff'
-              }}>
-                <h2 style={{
-                  fontSize: '1.5rem',
-                  fontWeight: '700',
-                  color: '#1e293b',
-                  marginBottom: '8px'
-                }}>
+              <div
+                style={{
+                  textAlign: 'center',
+                  padding: '24px',
+                  background:
+                    'linear-gradient(135deg, #fef3c7 0%, #ddd6fe 100%)',
+                  borderRadius: '12px',
+                  marginBottom: '24px',
+                  border: '2px solid #e0e7ff',
+                }}
+              >
+                <h2
+                  style={{
+                    fontSize: '1.5rem',
+                    fontWeight: '700',
+                    color: '#1e293b',
+                    marginBottom: '8px',
+                  }}
+                >
                   🎊 The Results Are In! 🎊
                 </h2>
-                <div style={{
-                  fontSize: '2rem',
-                  fontWeight: '800',
-                  background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  marginTop: '8px'
-                }}>
+                <div
+                  style={{
+                    fontSize: '2rem',
+                    fontWeight: '800',
+                    background:
+                      'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    marginTop: '8px',
+                  }}
+                >
                   It's a {revealedGender === 'boy' ? 'Boy! 👶' : 'Girl! 👧'}
                 </div>
               </div>
@@ -681,50 +726,35 @@ export default function Page() {
                   ))}
                 </div>
               ) : (
-                <div style={{
-                  textAlign: 'center',
-                  padding: '48px 24px',
-                  background: '#f8fafc',
-                  borderRadius: '12px'
-                }}>
-                  <div style={{ fontSize: '3rem', marginBottom: '16px' }}>😅</div>
-                  <h3 style={{
-                    fontSize: '1.25rem',
-                    fontWeight: '700',
-                    color: '#1e293b',
-                    marginBottom: '8px'
-                  }}>
+                <div
+                  style={{
+                    textAlign: 'center',
+                    padding: '48px 24px',
+                    background: '#f8fafc',
+                    borderRadius: '12px',
+                  }}
+                >
+                  <div style={{ fontSize: '3rem', marginBottom: '16px' }}>
+                    😅
+                  </div>
+                  <h3
+                    style={{
+                      fontSize: '1.25rem',
+                      fontWeight: '700',
+                      color: '#1e293b',
+                      marginBottom: '8px',
+                    }}
+                  >
                     No Winners!
                   </h3>
                   <p style={{ color: '#64748b', fontSize: '1rem' }}>
-                    Nobody bet on {revealedGender === 'boy' ? 'boy' : 'girl'}! The
-                    house wins this time! 🏠
+                    Nobody bet on {revealedGender === 'boy' ? 'boy' : 'girl'}!
+                    The house wins this time! 🏠
                   </p>
                 </div>
               )}
             </div>
           )}
-        </div>
-      )}
-
-      {/* Gender Reveal Section */}
-      {bets.length > 0 && !isRevealed && (
-        <div className='reveal-section'>
-          <h2 className='reveal-title'>🎉 Ready to Reveal? 🎉</h2>
-          <div className='reveal-buttons'>
-            <button
-              onClick={() => revealGender('boy')}
-              className='btn-reveal boy'
-            >
-              It's a Boy! 👶
-            </button>
-            <button
-              onClick={() => revealGender('girl')}
-              className='btn-reveal girl'
-            >
-              It's a Girl! 👧
-            </button>
-          </div>
         </div>
       )}
 
