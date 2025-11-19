@@ -7,6 +7,9 @@ export default function Page() {
   const [newBet, setNewBet] = useState({ name: '', gender: 'boy', amount: '' });
   const [revealedGender, setRevealedGender] = useState(null);
   const [isRevealed, setIsRevealed] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [notification, setNotification] = useState(null);
+  const [editingBet, setEditingBet] = useState(null);
 
   // Load data from localStorage on component mount
   useEffect(() => {
@@ -40,37 +43,81 @@ export default function Page() {
     localStorage.setItem('isRevealed', JSON.stringify(isRevealed));
   }, [isRevealed]);
 
-  const addBet = (e) => {
+  // Show notification helper
+  const showNotification = (message, type = 'success') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 3000);
+  };
+
+  const addBet = async (e) => {
     e.preventDefault();
     const amount = parseFloat(newBet.amount);
 
     if (!newBet.name || !newBet.amount || isNaN(amount) || amount <= 0) {
-      alert('Please enter a valid name and bet amount');
+      showNotification('Please enter a valid name and bet amount', 'error');
       return;
     }
 
     if (isRevealed) {
-      alert('Betting is closed - gender has been revealed!');
+      showNotification('Betting is closed - gender has been revealed!', 'error');
       return;
     }
 
-    const bet = {
-      id: Date.now(),
-      name: newBet.name.trim(),
-      gender: newBet.gender,
-      amount: amount,
-    };
+    setIsLoading(true);
 
-    setBets([...bets, bet]);
-    setNewBet({ name: '', gender: 'boy', amount: '' });
+    // Simulate async operation (you can replace this with actual API call)
+    setTimeout(() => {
+      try {
+        const bet = {
+          id: Date.now(),
+          name: newBet.name.trim(),
+          gender: newBet.gender,
+          amount: amount,
+        };
+
+        setBets([...bets, bet]);
+        setNewBet({ name: '', gender: 'boy', amount: '' });
+        showNotification(`Bet placed successfully! PHP ${amount.toFixed(2)} on ${newBet.gender}`, 'success');
+      } catch (error) {
+        showNotification('Failed to place bet. Please try again.', 'error');
+      } finally {
+        setIsLoading(false);
+      }
+    }, 500);
   };
 
   const removeBet = (id) => {
     if (isRevealed) {
-      alert('Cannot remove bets after reveal!');
+      showNotification('Cannot remove bets after reveal!', 'error');
       return;
     }
-    setBets(bets.filter((bet) => bet.id !== id));
+
+    const bet = bets.find((b) => b.id === id);
+    if (window.confirm(`Are you sure you want to remove ${bet?.name}'s bet?`)) {
+      setBets(bets.filter((bet) => bet.id !== id));
+      showNotification('Bet removed successfully', 'success');
+    }
+  };
+
+  const startEditBet = (bet) => {
+    setEditingBet({ ...bet });
+  };
+
+  const cancelEdit = () => {
+    setEditingBet(null);
+  };
+
+  const saveEdit = () => {
+    if (!editingBet.name || !editingBet.amount || editingBet.amount <= 0) {
+      showNotification('Please enter a valid name and bet amount', 'error');
+      return;
+    }
+
+    setBets(bets.map((bet) =>
+      bet.id === editingBet.id ? { ...editingBet, amount: parseFloat(editingBet.amount) } : bet
+    ));
+    setEditingBet(null);
+    showNotification('Bet updated successfully', 'success');
   };
 
   const revealGender = (gender) => {
@@ -245,8 +292,15 @@ export default function Page() {
               </div>
             </div>
 
-            <button type='submit' className='btn-primary'>
-              Place Bet 🚀
+            <button type='submit' className='btn-primary' disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <span className='loader'></span>
+                  Placing Bet...
+                </>
+              ) : (
+                <>Place Bet 🚀</>
+              )}
             </button>
           </form>
         </div>
@@ -290,24 +344,78 @@ export default function Page() {
                   isRevealed && bet.gender === revealedGender ? 'winner' : ''
                 }`}
               >
-                <div className='bet-info'>
-                  <div className='bet-name'>{bet.name}</div>
-                  <span className={`bet-gender ${bet.gender}`}>
-                    {bet.gender === 'boy' ? '👶 Boy' : '👧 Girl'}
-                  </span>
-                  <div className='bet-amount'>PHP {bet.amount.toFixed(2)}</div>
-                  {isRevealed && bet.gender === revealedGender && (
-                    <div className='winner-badge'>🎉 Winner!</div>
-                  )}
-                </div>
-                {!isRevealed && (
-                  <button
-                    onClick={() => removeBet(bet.id)}
-                    className='btn-remove'
-                    title='Remove bet'
-                  >
-                    ✕
-                  </button>
+                {editingBet && editingBet.id === bet.id ? (
+                  <div className='bet-edit-form'>
+                    <input
+                      type='text'
+                      className='form-input-small'
+                      value={editingBet.name}
+                      onChange={(e) =>
+                        setEditingBet({ ...editingBet, name: e.target.value })
+                      }
+                      placeholder='Name'
+                    />
+                    <select
+                      className='form-select-small'
+                      value={editingBet.gender}
+                      onChange={(e) =>
+                        setEditingBet({ ...editingBet, gender: e.target.value })
+                      }
+                    >
+                      <option value='boy'>👶 Boy</option>
+                      <option value='girl'>👧 Girl</option>
+                    </select>
+                    <input
+                      type='number'
+                      className='form-input-small'
+                      value={editingBet.amount}
+                      onChange={(e) =>
+                        setEditingBet({ ...editingBet, amount: e.target.value })
+                      }
+                      placeholder='Amount'
+                      min='1'
+                      step='0.01'
+                    />
+                    <div className='edit-actions'>
+                      <button onClick={saveEdit} className='btn-save' title='Save'>
+                        ✓
+                      </button>
+                      <button onClick={cancelEdit} className='btn-cancel' title='Cancel'>
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className='bet-info'>
+                      <div className='bet-name'>{bet.name}</div>
+                      <span className={`bet-gender ${bet.gender}`}>
+                        {bet.gender === 'boy' ? '👶 Boy' : '👧 Girl'}
+                      </span>
+                      <div className='bet-amount'>PHP {bet.amount.toFixed(2)}</div>
+                      {isRevealed && bet.gender === revealedGender && (
+                        <div className='winner-badge'>🎉 Winner!</div>
+                      )}
+                    </div>
+                    {!isRevealed && (
+                      <div className='bet-actions'>
+                        <button
+                          onClick={() => startEditBet(bet)}
+                          className='btn-edit'
+                          title='Edit bet'
+                        >
+                          ✎
+                        </button>
+                        <button
+                          onClick={() => removeBet(bet.id)}
+                          className='btn-remove'
+                          title='Remove bet'
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             ))}
@@ -377,6 +485,13 @@ export default function Page() {
           🔄 Start New Game
         </button>
       </div>
+
+      {/* Notification Toast */}
+      {notification && (
+        <div className={`notification ${notification.type}`}>
+          {notification.type === 'success' ? '✓' : '✕'} {notification.message}
+        </div>
+      )}
     </div>
   );
 }
