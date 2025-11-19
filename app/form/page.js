@@ -9,6 +9,34 @@ export default function Page() {
   const [isRevealed, setIsRevealed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [editingBet, setEditingBet] = useState(null);
+  const [toast, setToast] = useState({ show: false, message: '', type: '' });
+  const [confirmModal, setConfirmModal] = useState(null);
+  const [resetting, setResetting] = useState(false);
+
+  // Toast notification helper
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => {
+      setToast({ show: false, message: '', type: '' });
+    }, 3000);
+  };
+
+  // Confirmation modal helpers
+  const showConfirmModal = (title, message, onConfirm, type = 'warning') => {
+    setConfirmModal({ title, message, onConfirm, type });
+  };
+
+  const closeConfirmModal = () => {
+    setConfirmModal(null);
+  };
+
+  const handleConfirm = () => {
+    if (confirmModal?.onConfirm) {
+      confirmModal.onConfirm();
+    }
+    closeConfirmModal();
+  };
 
   // Fetch data from API
   const fetchData = async () => {
@@ -17,15 +45,16 @@ export default function Page() {
         fetch('/api/bets'),
         fetch('/api/game-state')
       ]);
-      
+
       const betsData = await betsResponse.json();
       const gameStateData = await gameStateResponse.json();
-      
+
       setBets(betsData);
       setRevealedGender(gameStateData.revealed_gender);
       setIsRevealed(gameStateData.is_revealed);
     } catch (error) {
       console.error('Error fetching data:', error);
+      showToast('Failed to load data', 'error');
     } finally {
       setLoading(false);
     }
@@ -37,19 +66,28 @@ export default function Page() {
 
   const addBet = async (e) => {
     e.preventDefault();
-    
+
     if (!newBet.name || !newBet.amount) {
-      alert('Please enter a valid name and bet amount');
+      showToast('Please enter a valid name and bet amount', 'error');
       return;
     }
 
     if (isRevealed) {
-      alert('Betting is closed - gender has been revealed!');
+      showToast('Betting is closed - gender has been revealed!', 'error');
+      return;
+    }
+
+    // Check for duplicate name
+    const duplicateName = bets.find(
+      bet => bet.name.toLowerCase().trim() === newBet.name.toLowerCase().trim()
+    );
+    if (duplicateName) {
+      showToast(`Name "${newBet.name}" already exists! Please use a different name.`, 'error');
       return;
     }
 
     setSubmitting(true);
-    
+
     try {
       const response = await fetch('/api/bets', {
         method: 'POST',
@@ -71,75 +109,163 @@ export default function Page() {
       // Refresh data
       await fetchData();
       setNewBet({ name: '', gender: 'boy', amount: '' });
+      showToast('Bet placed successfully!', 'success');
     } catch (error) {
-      alert('Error adding bet: ' + error.message);
+      showToast('Error adding bet: ' + error.message, 'error');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const removeBet = async (id) => {
+  const removeBet = (id) => {
     if (isRevealed) {
-      alert('Cannot remove bets after reveal!');
+      showToast('Cannot remove bets after reveal!', 'error');
       return;
     }
-    
-    try {
-      const response = await fetch(`/api/bets?id=${id}`, {
-        method: 'DELETE',
-      });
 
-      if (!response.ok) {
-        throw new Error('Failed to remove bet');
-      }
+    const bet = bets.find((b) => b.id === id);
+    showConfirmModal(
+      'Delete Bet',
+      `Are you sure you want to remove ${bet?.name}'s bet of PHP ${bet?.amount?.toFixed(2)}?`,
+      async () => {
+        try {
+          const response = await fetch(`/api/bets?id=${id}`, {
+            method: 'DELETE',
+          });
 
-      await fetchData();
-    } catch (error) {
-      alert('Error removing bet: ' + error.message);
-    }
+          if (!response.ok) {
+            throw new Error('Failed to remove bet');
+          }
+
+          await fetchData();
+          showToast('Bet removed successfully!', 'success');
+        } catch (error) {
+          showToast('Error removing bet: ' + error.message, 'error');
+        }
+      },
+      'danger'
+    );
   };
 
-  const revealGender = async (gender) => {
+  const startEditBet = (bet) => {
+    setEditingBet({ ...bet });
+  };
+
+  const cancelEdit = () => {
+    setEditingBet(null);
+  };
+
+  const updateBet = async (e) => {
+    e.preventDefault();
+
+    if (!editingBet.name || !editingBet.amount) {
+      showToast('Please enter a valid name and bet amount', 'error');
+      return;
+    }
+
+    if (isRevealed) {
+      showToast('Cannot edit bets after reveal!', 'error');
+      return;
+    }
+
+    // Check for duplicate name (excluding current bet)
+    const duplicateName = bets.find(
+      bet => bet.id !== editingBet.id &&
+             bet.name.toLowerCase().trim() === editingBet.name.toLowerCase().trim()
+    );
+    if (duplicateName) {
+      showToast(`Name "${editingBet.name}" already exists! Please use a different name.`, 'error');
+      return;
+    }
+
+    setSubmitting(true);
+
     try {
-      const response = await fetch('/api/game-state', {
-        method: 'POST',
+      const response = await fetch('/api/bets', {
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          revealedGender: gender,
-          isRevealed: true
+          id: editingBet.id,
+          name: editingBet.name,
+          gender: editingBet.gender,
+          amount: parseFloat(editingBet.amount)
         }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to reveal gender');
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to update bet');
       }
 
       await fetchData();
+      setEditingBet(null);
+      showToast('Bet updated successfully!', 'success');
     } catch (error) {
-      alert('Error revealing gender: ' + error.message);
+      showToast('Error updating bet: ' + error.message, 'error');
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const resetGame = async () => {
-    if (!confirm('Are you sure you want to start a new game? This will delete all bets!')) {
-      return;
-    }
-    
-    try {
-      const response = await fetch('/api/reset', {
-        method: 'POST',
-      });
+  const revealGender = (gender) => {
+    const genderText = gender === 'boy' ? 'Boy 👶' : 'Girl 👧';
+    showConfirmModal(
+      'Reveal Gender',
+      `Are you sure you want to reveal the gender as ${genderText}? This action cannot be undone and will close betting!`,
+      async () => {
+        try {
+          const response = await fetch('/api/game-state', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              revealedGender: gender,
+              isRevealed: true
+            }),
+          });
 
-      if (!response.ok) {
-        throw new Error('Failed to reset game');
-      }
+          if (!response.ok) {
+            throw new Error('Failed to reveal gender');
+          }
 
-      await fetchData();
-    } catch (error) {
-      alert('Error resetting game: ' + error.message);
-    }
+          await fetchData();
+          showToast(`Gender revealed as ${genderText}!`, 'success');
+        } catch (error) {
+          showToast('Error revealing gender: ' + error.message, 'error');
+        }
+      },
+      'info'
+    );
+  };
+
+  const resetGame = () => {
+    showConfirmModal(
+      'Reset Betting Pool',
+      'Are you sure you want to reset the entire betting pool? All bets and results will be permanently deleted!',
+      async () => {
+        setResetting(true);
+        try {
+          const response = await fetch('/api/reset', {
+            method: 'POST',
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to reset game');
+          }
+
+          await fetchData();
+          showToast('Betting pool reset successfully!', 'success');
+        } catch (error) {
+          showToast('Error resetting game: ' + error.message, 'error');
+        } finally {
+          setResetting(false);
+        }
+      },
+      'danger'
+    );
   };
 
   // Calculate totals and winners
@@ -359,13 +485,22 @@ export default function Page() {
                   )}
                 </div>
                 {!isRevealed && (
-                  <button
-                    onClick={() => removeBet(bet.id)}
-                    className='btn-remove w-8 h-8 rounded-full flex items-center justify-center'
-                    title='Remove bet'
-                  >
-                    ✕
-                  </button>
+                  <div className='bet-actions'>
+                    <button
+                      onClick={() => startEditBet(bet)}
+                      className='btn-edit'
+                      title='Edit bet'
+                    >
+                      ✏️
+                    </button>
+                    <button
+                      onClick={() => removeBet(bet.id)}
+                      className='btn-remove'
+                      title='Remove bet'
+                    >
+                      ✕
+                    </button>
+                  </div>
                 )}
               </div>
             ))}
@@ -431,10 +566,140 @@ export default function Page() {
 
       {/* Reset Button */}
       <div className='actions'>
-        <button onClick={resetGame} className='btn-reset'>
-          🔄 Start New Game
+        <button onClick={resetGame} className='btn-reset' disabled={resetting}>
+          {resetting ? (
+            <>
+              <span className='loader' style={{borderTopColor: 'white'}}></span>
+              Resetting...
+            </>
+          ) : (
+            '🔄 Reset Betting Pool'
+          )}
         </button>
       </div>
+
+      {/* Edit Modal */}
+      {editingBet && (
+        <div className='modal-overlay' onClick={cancelEdit}>
+          <div className='modal-content' onClick={(e) => e.stopPropagation()}>
+            <div className='modal-header'>
+              <h2 className='modal-title'>Edit Bet</h2>
+              <button onClick={cancelEdit} className='modal-close'>
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={updateBet} className='modal-form'>
+              <div className='form-group'>
+                <label className='form-label'>Name</label>
+                <input
+                  type='text'
+                  className='form-input'
+                  placeholder='Enter your name'
+                  value={editingBet.name}
+                  onChange={(e) =>
+                    setEditingBet({ ...editingBet, name: e.target.value })
+                  }
+                  required
+                  disabled={submitting}
+                />
+              </div>
+
+              <div className='form-group'>
+                <label className='form-label'>Prediction</label>
+                <select
+                  className='form-select'
+                  value={editingBet.gender}
+                  onChange={(e) =>
+                    setEditingBet({ ...editingBet, gender: e.target.value })
+                  }
+                  disabled={submitting}
+                >
+                  <option value='boy'>👶 Boy</option>
+                  <option value='girl'>👧 Girl</option>
+                </select>
+              </div>
+
+              <div className='form-group'>
+                <label className='form-label'>Bet Amount</label>
+                <input
+                  type='number'
+                  className='form-input'
+                  placeholder='PHP'
+                  min='1'
+                  step='0.01'
+                  value={editingBet.amount}
+                  onChange={(e) =>
+                    setEditingBet({ ...editingBet, amount: e.target.value })
+                  }
+                  required
+                  disabled={submitting}
+                />
+              </div>
+
+              <div className='modal-actions'>
+                <button
+                  type='button'
+                  onClick={cancelEdit}
+                  className='btn-cancel'
+                  disabled={submitting}
+                >
+                  Cancel
+                </button>
+                <button type='submit' className='btn-primary' disabled={submitting}>
+                  {submitting ? 'Updating...' : 'Update Bet'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {toast.show && (
+        <div className={`toast toast-${toast.type}`}>
+          <span className='toast-icon'>
+            {toast.type === 'success' ? '✅' : '❌'}
+          </span>
+          <span className='toast-message'>{toast.message}</span>
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {confirmModal && (
+        <div className='modal-overlay' onClick={closeConfirmModal}>
+          <div className='modal-content' onClick={(e) => e.stopPropagation()}>
+            <div className='modal-header'>
+              <h3 className='modal-title'>{confirmModal.title}</h3>
+              <button className='modal-close' onClick={closeConfirmModal}>✕</button>
+            </div>
+            <div className='modal-body'>
+              <div className='modal-icon'>
+                {confirmModal.type === 'danger' ? '⚠️' : confirmModal.type === 'info' ? '❓' : '⚠️'}
+              </div>
+              <p className='modal-message'>{confirmModal.message}</p>
+            </div>
+            <div className='modal-footer'>
+              <button className='btn-modal-cancel' onClick={closeConfirmModal}>
+                Cancel
+              </button>
+              <button className={`btn-modal-confirm ${confirmModal.type}`} onClick={handleConfirm}>
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Loading Overlay */}
+      {loading && (
+        <div className='modal-overlay'>
+          <div className='loading-spinner'>
+            <div className='spinner'></div>
+            <p>Loading betting pool...</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

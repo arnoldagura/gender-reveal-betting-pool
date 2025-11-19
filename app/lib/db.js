@@ -52,9 +52,34 @@ export async function addBet(name, gender, amount) {
   }
 }
 
+export async function updateBet(id, name, gender, amount) {
+  try {
+    const { data, error } = await supabase
+      .from('bets')
+      .update({
+        name: name.trim(),
+        gender,
+        amount: parseFloat(amount)
+      })
+      .eq('id', id)
+      .select('id, name, gender, amount, created_at')
+      .single();
+
+    if (error) {
+      console.error('Supabase error updating bet:', error);
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error updating bet:', error);
+    throw new Error(`Failed to update bet: ${error.message}`);
+  }
+}
+
 export async function deleteBet(id) {
   try {
-    
+
     const { error } = await supabase
       .from('bets')
       .delete()
@@ -64,7 +89,7 @@ export async function deleteBet(id) {
       console.error('Supabase error deleting bet:', error);
       throw error;
     }
-    
+
     return { success: true };
   } catch (error) {
     console.error('Error deleting bet:', error);
