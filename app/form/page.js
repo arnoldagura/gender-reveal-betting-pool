@@ -381,7 +381,17 @@ export default function Page() {
           {/* Boy Odds Card */}
           <div className='odds-card boy'>
             <div className='odds-header'>
-              <span className='odds-emoji'>👶</span>
+              <img
+                src='/team-boy.jfif'
+                alt='Team Boy'
+                style={{
+                  width: '90px',
+                  height: '90px',
+                  borderRadius: '50%',
+                  objectFit: 'cover',
+                  border: '3px solid #3b82f6'
+                }}
+              />
               <h3 className='odds-title'>Team Boy</h3>
             </div>
 
@@ -437,7 +447,17 @@ export default function Page() {
           {/* Girl Odds Card */}
           <div className='odds-card girl'>
             <div className='odds-header'>
-              <span className='odds-emoji'>👧</span>
+              <img
+                src='/team-girl.jfif'
+                alt='Team Girl'
+                style={{
+                  width: '90px',
+                  height: '90px',
+                  borderRadius: '50%',
+                  objectFit: 'cover',
+                  border: '3px solid #ec4899'
+                }}
+              />
               <h3 className='odds-title'>Team Girl</h3>
             </div>
 
