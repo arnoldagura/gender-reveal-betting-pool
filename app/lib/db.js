@@ -4,20 +4,20 @@ export async function getAllBets() {
   try {
     const { data, error } = await supabase
       .from('bets')
-      .select('id, name, gender, amount, created_at')
+      .select('id, name, gender, amount, claimed, created_at')
       .order('created_at', { ascending: false });
 
     if (error) {
       console.error('Supabase error fetching bets:', error);
-      
+
       if (error.code === '42P01') {
         console.log('Bets table not ready yet, returning empty array');
         return [];
       }
-      
+
       throw error;
     }
-    
+
     return data || [];
   } catch (error) {
     console.error('Error fetching bets:', error);
@@ -94,6 +94,29 @@ export async function deleteBet(id) {
   } catch (error) {
     console.error('Error deleting bet:', error);
     throw new Error(`Failed to delete bet: ${error.message}`);
+  }
+}
+
+export async function updateClaimedStatus(id, claimed) {
+  try {
+    const { data, error } = await supabase
+      .from('bets')
+      .update({
+        claimed: claimed
+      })
+      .eq('id', id)
+      .select('id, name, gender, amount, claimed, created_at')
+      .single();
+
+    if (error) {
+      console.error('Supabase error updating claimed status:', error);
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error updating claimed status:', error);
+    throw new Error(`Failed to update claimed status: ${error.message}`);
   }
 }
 
