@@ -14,6 +14,8 @@ export default function Page() {
   const [confirmModal, setConfirmModal] = useState(null);
   const [resetting, setResetting] = useState(false);
   const [activeTab, setActiveTab] = useState('all'); // 'all' or 'winners'
+  const [searchQuery, setSearchQuery] = useState('');
+  const [claimingBetId, setClaimingBetId] = useState(null);
 
   // Toast notification helper
   const showToast = (message, type = 'success') => {
@@ -279,6 +281,36 @@ export default function Page() {
     );
   };
 
+  const toggleClaimedStatus = async (betId, currentStatus) => {
+    setClaimingBetId(betId);
+    try {
+      const response = await fetch('/api/claimed', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: betId,
+          claimed: !currentStatus,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update claimed status');
+      }
+
+      await fetchData();
+      showToast(
+        `Marked as ${!currentStatus ? 'claimed' : 'unclaimed'}!`,
+        'success'
+      );
+    } catch (error) {
+      showToast('Error updating claimed status: ' + error.message, 'error');
+    } finally {
+      setClaimingBetId(null);
+    }
+  };
+
   // Calculate totals and winners
   const totalPot = bets.reduce((sum, bet) => sum + bet.amount, 0);
 
@@ -299,6 +331,18 @@ export default function Page() {
     ? bets.filter((bet) => bet.gender === revealedGender)
     : [];
   const winnerCount = winners.length;
+
+  // Filter bets based on search query
+  const filteredBets = bets
+    .filter((bet) => bet.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const filteredWinners = winners
+    .filter((bet) => bet.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  // Calculate claimed count
+  const claimedCount = winners.filter((winner) => winner.claimed).length;
 
   // Calculate individual winnings based on bet amount and payout ratio
   const calculateWinnings = (bet) => {
@@ -575,13 +619,13 @@ export default function Page() {
                 padding: '16px 24px',
                 background:
                   activeTab === 'all'
-                    ? 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)'
+                    ? 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)'
                     : 'transparent',
                 color: activeTab === 'all' ? 'white' : '#64748b',
                 border: 'none',
                 borderBottom:
                   activeTab === 'all'
-                    ? '3px solid #7c3aed'
+                    ? '3px solid #4b5563'
                     : '3px solid transparent',
                 cursor: 'pointer',
                 fontSize: '1rem',
@@ -615,54 +659,104 @@ export default function Page() {
                   borderRadius: '8px 8px 0 0',
                 }}
               >
-                🏆 Winners ({winners.length})
+                🏆 Winners ({winners.length}) - {claimedCount} Claimed
               </button>
+            )}
+          </div>
+
+          {/* Search Input */}
+          <div style={{ marginBottom: '24px' }}>
+            <div className='form-group'>
+              <label className='form-label'>🔍 Search by Name</label>
+              <input
+                type='text'
+                className='form-input'
+                placeholder='Type a name to search...'
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            {searchQuery && (
+              <div style={{ marginTop: '8px', fontSize: '0.9rem', color: '#64748b' }}>
+                {activeTab === 'all'
+                  ? `Showing ${filteredBets.length} of ${bets.length} bets`
+                  : `Showing ${filteredWinners.length} of ${winners.length} winners`
+                }
+              </div>
             )}
           </div>
 
           {/* Tab Content - All Bets */}
           {activeTab === 'all' && (
-            <div className='bets-grid'>
-              {bets.map((bet) => (
-                <div
-                  key={bet.id}
-                  className={`bet-card ${
-                    isRevealed && bet.gender === revealedGender ? 'winner' : ''
-                  }`}
-                >
-                  <div className='bet-info'>
-                    <div className='bet-name'>{bet.name}</div>
-                    <span className={`bet-gender ${bet.gender}`}>
-                      {bet.gender === 'boy' ? '👶 Boy' : '👧 Girl'}
-                    </span>
-                    <div className='bet-amount'>
-                      PHP {bet.amount.toFixed(2)}
+            <>
+              {filteredBets.length > 0 ? (
+                <div className='bets-grid'>
+                  {filteredBets.map((bet) => (
+                    <div
+                      key={bet.id}
+                      className={`bet-card ${
+                        isRevealed && bet.gender === revealedGender ? 'winner' : ''
+                      }`}
+                    >
+                      <div className='bet-info'>
+                        <div className='bet-name'>{bet.name}</div>
+                        <span className={`bet-gender ${bet.gender}`}>
+                          {bet.gender === 'boy' ? '👶 Boy' : '👧 Girl'}
+                        </span>
+                        <div className='bet-amount'>
+                          PHP {bet.amount.toFixed(2)}
+                        </div>
+                        {isRevealed && bet.gender === revealedGender && (
+                          <div className='winner-badge'>🎉 Winner!</div>
+                        )}
+                      </div>
+                      {!isRevealed && (
+                        <div className='bet-actions'>
+                          <button
+                            onClick={() => startEditBet(bet)}
+                            className='btn-edit'
+                            title='Edit bet'
+                          >
+                            ✏️
+                          </button>
+                          <button
+                            onClick={() => removeBet(bet.id)}
+                            className='btn-remove'
+                            title='Remove bet'
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      )}
                     </div>
-                    {isRevealed && bet.gender === revealedGender && (
-                      <div className='winner-badge'>🎉 Winner!</div>
-                    )}
-                  </div>
-                  {!isRevealed && (
-                    <div className='bet-actions'>
-                      <button
-                        onClick={() => startEditBet(bet)}
-                        className='btn-edit'
-                        title='Edit bet'
-                      >
-                        ✏️
-                      </button>
-                      <button
-                        onClick={() => removeBet(bet.id)}
-                        className='btn-remove'
-                        title='Remove bet'
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  )}
+                  ))}
                 </div>
-              ))}
-            </div>
+              ) : (
+                <div
+                  style={{
+                    textAlign: 'center',
+                    padding: '48px 24px',
+                    background: '#f8fafc',
+                    borderRadius: '12px',
+                  }}
+                >
+                  <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🔍</div>
+                  <h3
+                    style={{
+                      fontSize: '1.25rem',
+                      fontWeight: '700',
+                      color: '#1e293b',
+                      marginBottom: '8px',
+                    }}
+                  >
+                    No bets found
+                  </h3>
+                  <p style={{ color: '#64748b', fontSize: '1rem' }}>
+                    No bets match your search "{searchQuery}"
+                  </p>
+                </div>
+              )}
+            </>
           )}
 
           {/* Tab Content - Winners */}
@@ -704,9 +798,9 @@ export default function Page() {
                 </div>
               </div>
 
-              {winners.length > 0 ? (
+              {filteredWinners.length > 0 ? (
                 <div className='winners-grid'>
-                  {winners.map((winner) => (
+                  {filteredWinners.map((winner) => (
                     <div key={winner.id} className='winner-card'>
                       <div className='winner-name'>{winner.name}</div>
                       <div>Bet: PHP {winner.amount.toFixed(2)}</div>
@@ -722,8 +816,70 @@ export default function Page() {
                       >
                         Profit: PHP {calculateProfit(winner).toFixed(2)}
                       </div>
+                      <div style={{ marginTop: '12px' }}>
+                        <button
+                          onClick={() => toggleClaimedStatus(winner.id, winner.claimed)}
+                          disabled={claimingBetId === winner.id}
+                          style={{
+                            padding: '8px 16px',
+                            borderRadius: '6px',
+                            border: 'none',
+                            fontSize: '0.85rem',
+                            fontWeight: '600',
+                            cursor: claimingBetId === winner.id ? 'not-allowed' : 'pointer',
+                            transition: 'all 0.2s ease',
+                            background: winner.claimed
+                              ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+                              : 'linear-gradient(135deg, #94a3b8 0%, #64748b 100%)',
+                            color: 'white',
+                            opacity: claimingBetId === winner.id ? 0.7 : 1,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px',
+                          }}
+                        >
+                          {claimingBetId === winner.id ? (
+                            <>
+                              <span className='loader' style={{
+                                width: '12px',
+                                height: '12px',
+                                borderWidth: '2px',
+                                borderTopColor: 'white'
+                              }}></span>
+                              {winner.claimed ? 'Updating...' : 'Updating...'}
+                            </>
+                          ) : (
+                            winner.claimed ? '✓ Claimed' : 'Mark as Claimed'
+                          )}
+                        </button>
+                      </div>
                     </div>
                   ))}
+                </div>
+              ) : searchQuery ? (
+                <div
+                  style={{
+                    textAlign: 'center',
+                    padding: '48px 24px',
+                    background: '#f8fafc',
+                    borderRadius: '12px',
+                  }}
+                >
+                  <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🔍</div>
+                  <h3
+                    style={{
+                      fontSize: '1.25rem',
+                      fontWeight: '700',
+                      color: '#1e293b',
+                      marginBottom: '8px',
+                    }}
+                  >
+                    No winners found
+                  </h3>
+                  <p style={{ color: '#64748b', fontSize: '1rem' }}>
+                    No winners match your search "{searchQuery}"
+                  </p>
                 </div>
               ) : (
                 <div

@@ -8,6 +8,7 @@ export default function ViewOnlyStats() {
   const [isRevealed, setIsRevealed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all'); // 'all' or 'winners'
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Fetch data from API
   const fetchData = async () => {
@@ -64,6 +65,18 @@ export default function ViewOnlyStats() {
     : [];
   const winnerCount = winners.length;
 
+  // Filter bets based on search query
+  const filteredBets = bets
+    .filter((bet) => bet.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const filteredWinners = winners
+    .filter((bet) => bet.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  // Calculate claimed count
+  const claimedCount = winners.filter((winner) => winner.claimed).length;
+
   // Calculate individual winnings based on bet amount and payout ratio
   const calculateWinnings = (bet) => {
     if (!isRevealed || bet.gender !== revealedGender) return 0;
@@ -93,22 +106,6 @@ export default function ViewOnlyStats() {
       <div className='header'>
         <h1 className='main-title'>🎲 Live Betting Stats</h1>
         <p className='subtitle'>Real-time odds and statistics 📊</p>
-        {!isRevealed && (
-          <div
-            style={{
-              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-              color: 'white',
-              padding: '8px 16px',
-              borderRadius: '20px',
-              display: 'inline-block',
-              fontSize: '0.875rem',
-              fontWeight: '600',
-              marginTop: '12px',
-            }}
-          >
-            🔄 Auto-refreshing every 5 seconds
-          </div>
-        )}
       </div>
 
       {/* No Data Message */}
@@ -307,25 +304,33 @@ export default function ViewOnlyStats() {
       {bets.length > 0 && (
         <div className='card'>
           {/* Tab Headers */}
-          <div style={{
-            display: 'flex',
-            borderBottom: '2px solid #e2e8f0',
-            marginBottom: '24px'
-          }}>
+          <div
+            style={{
+              display: 'flex',
+              borderBottom: '2px solid #e2e8f0',
+              marginBottom: '24px',
+            }}
+          >
             <button
               onClick={() => setActiveTab('all')}
               style={{
                 flex: 1,
                 padding: '16px 24px',
-                background: activeTab === 'all' ? 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)' : 'transparent',
+                background:
+                  activeTab === 'all'
+                    ? 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)'
+                    : 'transparent',
                 color: activeTab === 'all' ? 'white' : '#64748b',
                 border: 'none',
-                borderBottom: activeTab === 'all' ? '3px solid #7c3aed' : '3px solid transparent',
+                borderBottom:
+                  activeTab === 'all'
+                    ? '3px solid #4b5563'
+                    : '3px solid transparent',
                 cursor: 'pointer',
                 fontSize: '1rem',
                 fontWeight: '600',
                 transition: 'all 0.3s ease',
-                borderRadius: '8px 8px 0 0'
+                borderRadius: '8px 8px 0 0',
               }}
             >
               📋 All Bets ({bets.length})
@@ -336,83 +341,156 @@ export default function ViewOnlyStats() {
                 style={{
                   flex: 1,
                   padding: '16px 24px',
-                  background: activeTab === 'winners' ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' : 'transparent',
+                  background:
+                    activeTab === 'winners'
+                      ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
+                      : 'transparent',
                   color: activeTab === 'winners' ? 'white' : '#64748b',
                   border: 'none',
-                  borderBottom: activeTab === 'winners' ? '3px solid #d97706' : '3px solid transparent',
+                  borderBottom:
+                    activeTab === 'winners'
+                      ? '3px solid #d97706'
+                      : '3px solid transparent',
                   cursor: 'pointer',
                   fontSize: '1rem',
                   fontWeight: '600',
                   transition: 'all 0.3s ease',
-                  borderRadius: '8px 8px 0 0'
+                  borderRadius: '8px 8px 0 0',
                 }}
               >
-                🏆 Winners ({winners.length})
+                🏆 Winners ({winners.length}) - {claimedCount} Claimed
               </button>
+            )}
+          </div>
+
+          {/* Search Input */}
+          <div style={{ marginBottom: '24px' }}>
+            <div className='form-group'>
+              <label className='form-label'>🔍 Search by Name</label>
+              <input
+                type='text'
+                className='form-input'
+                placeholder='Type a name to search...'
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            {searchQuery && (
+              <div
+                style={{
+                  marginTop: '8px',
+                  fontSize: '0.9rem',
+                  color: '#64748b',
+                }}
+              >
+                {activeTab === 'all'
+                  ? `Showing ${filteredBets.length} of ${bets.length} bets`
+                  : `Showing ${filteredWinners.length} of ${winners.length} winners`}
+              </div>
             )}
           </div>
 
           {/* Tab Content - All Bets */}
           {activeTab === 'all' && (
-            <div className='bets-grid'>
-              {bets.map((bet) => (
-                <div
-                  key={bet.id}
-                  className={`bet-card ${
-                    isRevealed && bet.gender === revealedGender ? 'winner' : ''
-                  }`}
-                >
-                  <div className='bet-info'>
-                    <div className='bet-name'>{bet.name || 'Unknown'}</div>
-                    <span className={`bet-gender ${bet.gender}`}>
-                      {bet.gender === 'boy' ? '👶 Boy' : '👧 Girl'}
-                    </span>
-                    <div className='bet-amount'>
-                      PHP {(bet.amount || 0).toFixed(2)}
+            <>
+              {filteredBets.length > 0 ? (
+                <div className='bets-grid'>
+                  {filteredBets.map((bet) => (
+                    <div
+                      key={bet.id}
+                      className={`bet-card ${
+                        isRevealed && bet.gender === revealedGender
+                          ? 'winner'
+                          : ''
+                      }`}
+                    >
+                      <div className='bet-info'>
+                        <div className='bet-name'>{bet.name || 'Unknown'}</div>
+                        <span className={`bet-gender ${bet.gender}`}>
+                          {bet.gender === 'boy' ? '👶 Boy' : '👧 Girl'}
+                        </span>
+                        <div className='bet-amount'>
+                          PHP {(bet.amount || 0).toFixed(2)}
+                        </div>
+                        {isRevealed && bet.gender === revealedGender && (
+                          <div className='winner-badge'>🎉 Winner!</div>
+                        )}
+                      </div>
                     </div>
-                    {isRevealed && bet.gender === revealedGender && (
-                      <div className='winner-badge'>🎉 Winner!</div>
-                    )}
-                  </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              ) : (
+                <div
+                  style={{
+                    textAlign: 'center',
+                    padding: '48px 24px',
+                    background: '#f8fafc',
+                    borderRadius: '12px',
+                  }}
+                >
+                  <div style={{ fontSize: '3rem', marginBottom: '16px' }}>
+                    🔍
+                  </div>
+                  <h3
+                    style={{
+                      fontSize: '1.25rem',
+                      fontWeight: '700',
+                      color: '#1e293b',
+                      marginBottom: '8px',
+                    }}
+                  >
+                    No bets found
+                  </h3>
+                  <p style={{ color: '#64748b', fontSize: '1rem' }}>
+                    No bets match your search "{searchQuery}"
+                  </p>
+                </div>
+              )}
+            </>
           )}
 
           {/* Tab Content - Winners */}
           {activeTab === 'winners' && isRevealed && (
             <div>
-              <div style={{
-                textAlign: 'center',
-                padding: '24px',
-                background: 'linear-gradient(135deg, #fef3c7 0%, #ddd6fe 100%)',
-                borderRadius: '12px',
-                marginBottom: '24px',
-                border: '2px solid #e0e7ff'
-              }}>
-                <h2 style={{
-                  fontSize: '1.5rem',
-                  fontWeight: '700',
-                  color: '#1e293b',
-                  marginBottom: '8px'
-                }}>
+              <div
+                style={{
+                  textAlign: 'center',
+                  padding: '24px',
+                  background:
+                    'linear-gradient(135deg, #fef3c7 0%, #ddd6fe 100%)',
+                  borderRadius: '12px',
+                  marginBottom: '24px',
+                  border: '2px solid #e0e7ff',
+                }}
+              >
+                <h2
+                  style={{
+                    fontSize: '1.5rem',
+                    fontWeight: '700',
+                    color: '#1e293b',
+                    marginBottom: '8px',
+                  }}
+                >
                   🎊 The Results Are In! 🎊
                 </h2>
-                <div style={{
-                  fontSize: '2rem',
-                  fontWeight: '800',
-                  background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  marginTop: '8px'
-                }}>
+                <div
+                  style={{
+                    fontSize: '2rem',
+                    fontWeight: '800',
+                    background:
+                      'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    marginTop: '8px',
+                  }}
+                >
                   It's a {revealedGender === 'boy' ? 'Boy! 👶' : 'Girl! 👧'}
                 </div>
               </div>
 
-              {winners.length > 0 ? (
+              {filteredWinners.length > 0 ? (
                 <div className='winners-grid'>
-                  {winners.map((winner) => (
+                  {filteredWinners.map((winner) => (
                     <div key={winner.id} className='winner-card'>
                       <div className='winner-name'>{winner.name}</div>
                       <div>Bet: PHP {winner.amount.toFixed(2)}</div>
@@ -428,28 +506,76 @@ export default function ViewOnlyStats() {
                       >
                         Profit: PHP {calculateProfit(winner).toFixed(2)}
                       </div>
+                      {winner.claimed && (
+                        <div
+                          style={{
+                            marginTop: '8px',
+                            padding: '6px 12px',
+                            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                            color: 'white',
+                            borderRadius: '6px',
+                            fontSize: '0.85rem',
+                            fontWeight: '600',
+                            textAlign: 'center',
+                          }}
+                        >
+                          ✓ Claimed
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
+              ) : searchQuery ? (
+                <div
+                  style={{
+                    textAlign: 'center',
+                    padding: '48px 24px',
+                    background: '#f8fafc',
+                    borderRadius: '12px',
+                  }}
+                >
+                  <div style={{ fontSize: '3rem', marginBottom: '16px' }}>
+                    🔍
+                  </div>
+                  <h3
+                    style={{
+                      fontSize: '1.25rem',
+                      fontWeight: '700',
+                      color: '#1e293b',
+                      marginBottom: '8px',
+                    }}
+                  >
+                    No winners found
+                  </h3>
+                  <p style={{ color: '#64748b', fontSize: '1rem' }}>
+                    No winners match your search "{searchQuery}"
+                  </p>
+                </div>
               ) : (
-                <div style={{
-                  textAlign: 'center',
-                  padding: '48px 24px',
-                  background: '#f8fafc',
-                  borderRadius: '12px'
-                }}>
-                  <div style={{ fontSize: '3rem', marginBottom: '16px' }}>😅</div>
-                  <h3 style={{
-                    fontSize: '1.25rem',
-                    fontWeight: '700',
-                    color: '#1e293b',
-                    marginBottom: '8px'
-                  }}>
+                <div
+                  style={{
+                    textAlign: 'center',
+                    padding: '48px 24px',
+                    background: '#f8fafc',
+                    borderRadius: '12px',
+                  }}
+                >
+                  <div style={{ fontSize: '3rem', marginBottom: '16px' }}>
+                    😅
+                  </div>
+                  <h3
+                    style={{
+                      fontSize: '1.25rem',
+                      fontWeight: '700',
+                      color: '#1e293b',
+                      marginBottom: '8px',
+                    }}
+                  >
                     No Winners!
                   </h3>
                   <p style={{ color: '#64748b', fontSize: '1rem' }}>
-                    Nobody bet on {revealedGender === 'boy' ? 'boy' : 'girl'}! The
-                    house wins this time! 🏠
+                    Nobody bet on {revealedGender === 'boy' ? 'boy' : 'girl'}!
+                    The house wins this time! 🏠
                   </p>
                 </div>
               )}
@@ -471,7 +597,6 @@ export default function ViewOnlyStats() {
       >
         <p>📊 This is a read-only view of the betting pool</p>
         <p>🔄 Data updates automatically every 5 seconds</p>
-        <p>💾 All data is stored in the database</p>
       </div>
     </div>
   );
